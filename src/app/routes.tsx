@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { AuthLayout } from './layouts/AuthLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { PublicLayout } from './layouts/PublicLayout';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -54,67 +55,67 @@ export const router = createBrowserRouter([
     children: [
       {
         path: 'dashboard',
-        Component: DashboardPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><DashboardPage /></ProtectedRoute>,
       },
       {
         path: 'users',
-        Component: UsersPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><UsersPage /></ProtectedRoute>,
       },
       {
         path: 'roles',
-        Component: RolesPage,
+        element: <ProtectedRoute allowedRoles={['super_admin']}><RolesPage /></ProtectedRoute>,
       },
       {
         path: 'websites',
-        Component: WebsitesPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><WebsitesPage /></ProtectedRoute>,
       },
       {
         path: 'pages',
-        Component: PagesPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PagesPage /></ProtectedRoute>,
       },
       {
         path: 'articles',
-        Component: ArticlesPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><ArticlesPage /></ProtectedRoute>,
       },
       {
         path: 'media',
-        Component: MediaPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><MediaPage /></ProtectedRoute>,
       },
       {
         path: 'menus',
-        Component: MenusPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><MenusPage /></ProtectedRoute>,
       },
       {
         path: 'translations',
-        Component: TranslationsPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><TranslationsPage /></ProtectedRoute>,
       },
       {
         path: 'theme',
-        Component: ThemePage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><ThemePage /></ProtectedRoute>,
       },
       {
         path: 'seo',
-        Component: SEOPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SEOPage /></ProtectedRoute>,
       },
       {
         path: 'settings',
-        Component: SiteSettingsPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SiteSettingsPage /></ProtectedRoute>,
       },
       {
         path: 'global-settings',
-        Component: GlobalSettingsPage,
+        element: <ProtectedRoute allowedRoles={['super_admin']}><GlobalSettingsPage /></ProtectedRoute>,
       },
       {
         path: 'activity-logs',
-        Component: ActivityLogsPage,
+        element: <ProtectedRoute allowedRoles={['super_admin']}><ActivityLogsPage /></ProtectedRoute>,
       },
       {
         path: 'preview',
-        Component: PreviewPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PreviewPage /></ProtectedRoute>,
       },
       {
         path: 'publish',
-        Component: PublishPage,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PublishPage /></ProtectedRoute>,
       },
     ],
   },

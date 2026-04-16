@@ -10,8 +10,9 @@
 6. [Authentication Flow (Sequence Diagram)](#authentication-flow-sequence-diagram)
 7. [Step-by-Step Process](#step-by-step-process)
 8. [Security Features](#security-features)
-9. [Testing](#testing)
-10. [Troubleshooting](#troubleshooting)
+9. [Role-Based Access Control](#role-based-access-control)
+10. [Testing](#testing)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -22,12 +23,14 @@ The CMS Platform uses a **hybrid authentication system** combining:
 - **Sessions** for tracking user activity and graceful logouts
 - **CORS with credentials** for secure cross-origin requests
 - **Password hashing** (bcrypt) for secure credential storage
+- **Role-based access control** for frontend route protection
 
 This dual approach ensures:
 - ✅ **Scalability**: JWT doesn't require server-side storage
 - ✅ **Session tracking**: Sessions log all user activity
-- ✅ **Role-based access**: User role is embedded in JWT
+- ✅ **Role-based access**: User role embedded in JWT and enforced in frontend routing
 - ✅ **Security**: Passwords never exposed, HTTPS-ready
+- ✅ **Access control**: Routes protected by user roles (super_admin, admin, editor)
 
 ---
 
@@ -48,6 +51,13 @@ This dual approach ensures:
 │  │ - Manages user state (React Context)                   │   │
 │  │ - Stores token & user info in localStorage            │   │
 │  │ - Coordinates login/logout operations                 │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                           ↓                                      │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ ProtectedRoute.tsx                                       │   │
+│  │ - Route protection component                            │   │
+│  │ - Checks user authentication & role                    │   │
+│  │ - Redirects unauthorized users                         │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                           ↓                                      │
 │  ┌──────────────────────────────────────────────────────────┐   │
@@ -182,7 +192,41 @@ const login = async (email: string, password: string) => {
 
 ---
 
-### **3. ApiService.ts**
+### **3. ProtectedRoute.tsx**
+**Location:** `src/app/components/ProtectedRoute.tsx`
+
+**Responsibilities:**
+- Route protection component for role-based access control
+- Checks if user is authenticated and has required role
+- Redirects unauthorized users to dashboard or login
+- Wraps protected page components
+
+**Key Code:**
+```tsx
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles: Role[];
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    // Redirect to dashboard if not authorized
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+```
+
+---
+
+### **4. ApiService.ts**
 **Location:** `src/app/services/api.ts`
 
 **Responsibilities:**
@@ -564,7 +608,20 @@ CREATE TABLE activity_logs (
      │                    │ + localStorage       │                    │
      │                    │                       │                    │
      │ Redirect to        │                       │                    │
-     │ /dashboard <──────┤                       │                    │
+     │ /dashboard ───────>│                       │                    │
+     │                    │                       │                    │
+     │                    │ ProtectedRoute        │                    │
+     │                    │ checks user role      │                    │
+     │                    │ (super_admin/admin/   │                    │
+     │                    │  editor)              │                    │
+     │                    │                       │                    │
+     │                    │ If authorized:        │                    │
+     │                    │ render dashboard      │                    │
+     │                    │                       │                    │
+     │                    │ If not authorized:    │                    │
+     │                    │ redirect to /dashboard│                    │
+     │                    │ (or /login if not     │                    │
+     │                    │  authenticated)       │                    │
      │                    │                       │                    │
 ```
 
@@ -715,12 +772,21 @@ CREATE TABLE activity_logs (
     localStorage.setItem('cms_token', response.token)
     ```
 
-### **Phase 14: Redirect**
+### **Phase 14: Redirect & Role-Based Access Control**
 
 31. **LoginPage.tsx** calls `navigate('/dashboard')`
 32. **DashboardLayout** checks `if (!user) redirect to login`
-33. User is authenticated → dashboard displays
-34. Shows user name + role in topbar
+33. **ProtectedRoute** component wraps each dashboard route
+34. Checks if user role is in `allowedRoles` array for the route
+35. If authorized: render the requested page
+36. If not authorized: redirect to `/dashboard` (fallback)
+37. Dashboard displays with role-filtered menu items
+38. Shows user name + role in topbar
+
+**Role Permissions:**
+- **super_admin**: All routes + all menu items
+- **admin**: Most routes except roles/global-settings/activity-logs
+- **editor**: Content routes (dashboard, pages, articles, media, preview, publish)
 
 ---
 
@@ -793,6 +859,104 @@ if (empty($data['email']) || empty($data['password'])) {
     echo json_encode(['status' => 'error', 'message' => 'Email and password required']);
 }
 ```
+
+---
+
+## 🔐 Role-Based Access Control
+
+The CMS implements comprehensive role-based access control (RBAC) to restrict system access based on user roles. The system supports three roles: `super_admin`, `admin`, and `editor`.
+
+### **Role Definitions**
+
+#### **super_admin**
+- **Full System Access**: Complete access to all features and modules
+- **User Management**: Create, edit, delete all user accounts
+- **System Configuration**: Access to global settings, activity logs, and role management
+- **Content Management**: All content creation and publishing capabilities
+
+#### **admin**
+- **Administrative Access**: Most system features except super-admin only areas
+- **User Management**: Limited user management (cannot manage super_admins)
+- **Content Oversight**: Full content management and publishing
+- **System Monitoring**: Access to settings and configurations
+- **Restricted Areas**: Cannot access roles management, global settings, activity logs
+
+#### **editor**
+- **Content Creation**: Focus on content creation and editing
+- **Limited Access**: Dashboard, pages, articles, media library, preview, publish
+- **No Administrative**: Cannot access user management, settings, or system configuration
+
+### **Frontend Implementation**
+
+#### **ProtectedRoute Component**
+**Location:** `src/app/components/ProtectedRoute.tsx`
+
+Routes are protected using the `ProtectedRoute` component that:
+- Verifies user authentication
+- Checks user role against `allowedRoles` array
+- Redirects unauthorized users to dashboard
+- Prevents access to restricted routes
+
+#### **Route Configuration**
+**Location:** `src/app/routes.tsx`
+
+Each dashboard route specifies allowed roles:
+```tsx
+{
+  path: 'users',
+  element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><UsersPage /></ProtectedRoute>,
+},
+{
+  path: 'roles',
+  element: <ProtectedRoute allowedRoles={['super_admin']}><RolesPage /></ProtectedRoute>,
+},
+```
+
+#### **Menu Filtering**
+**Location:** `src/app/layouts/DashboardLayout.tsx`
+
+Sidebar menu items are filtered based on user role:
+```tsx
+const filteredMenuItems = menuItems.filter(item =>
+  user && item.roles.includes(user.role)
+);
+```
+
+### **Backend Role Integration**
+
+The backend includes role information in:
+- **JWT Payload**: Role embedded for stateless authorization
+- **Login Response**: User object contains role field
+- **Database**: Users table stores role enum values
+
+### **Access Control Matrix**
+
+| Module/Feature | super_admin | admin | editor |
+|----------------|-------------|-------|--------|
+| Dashboard | ✅ | ✅ | ✅ |
+| Users | ✅ | ✅ | ❌ |
+| Roles & Permissions | ✅ | ❌ | ❌ |
+| Websites | ✅ | ✅ | ❌ |
+| Pages | ✅ | ✅ | ✅ |
+| Articles | ✅ | ✅ | ✅ |
+| Media Library | ✅ | ✅ | ✅ |
+| Menus | ✅ | ✅ | ❌ |
+| Translations | ✅ | ✅ | ❌ |
+| Theme | ✅ | ✅ | ❌ |
+| SEO | ✅ | ✅ | ❌ |
+| Site Settings | ✅ | ✅ | ❌ |
+| Global Settings | ✅ | ❌ | ❌ |
+| Activity Logs | ✅ | ❌ | ❌ |
+| Preview | ✅ | ✅ | ✅ |
+| Publish | ✅ | ✅ | ✅ |
+
+### **Security Considerations**
+
+- **Role Validation**: Both frontend and backend validate roles
+- **Fallback Redirect**: Unauthorized access redirects to dashboard
+- **Menu Hiding**: Restricted menu items are not displayed
+- **Route Protection**: Direct URL access is blocked
+- **Session Persistence**: Role information persists across sessions
 
 ---
 
@@ -1107,4 +1271,4 @@ Open browser: `http://localhost:5173`
 
 ---
 
-**Last Updated:** April 2, 2026
+**Last Updated:** April 16, 2026 by Fatima ezzahra boulouiz 

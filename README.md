@@ -176,4 +176,4 @@ Different user roles have different permissions:
 
 ## License
 
-Proprietary - All rights reserved
+Proprietary - All rights reserved by fatima ezzahra boulouiz
