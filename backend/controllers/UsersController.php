@@ -305,6 +305,62 @@ class UsersController
         ]);
     }
 
+    public function getUserCountsByRole(): void
+    {
+        try {
+            $token = $this->getBearerToken();
+
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            // Only super_admin and admin can view user statistics
+            $currentUser = $this->userModel->findById($payload['sub']);
+            if (!$currentUser || !in_array($currentUser['role'], ['super_admin', 'admin'])) {
+                $this->respondForbidden('Insufficient permissions');
+                return;
+            }
+
+            $stmt = $this->pdo->prepare('SELECT role, COUNT(*) as count FROM users GROUP BY role');
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Initialize counts for all roles
+            $roleCounts = [
+                'super_admin' => 0,
+                'admin' => 0,
+                'editor' => 0,
+                'visitor' => 0,
+            ];
+
+            // Fill in the counts from the query results
+            foreach ($results as $result) {
+                if (isset($roleCounts[$result['role']])) {
+                    $roleCounts[$result['role']] = (int)$result['count'];
+                }
+            }
+
+            error_log('User counts by role: ' . json_encode($roleCounts));
+
+            echo json_encode([
+                'status' => 'success',
+                'roleCounts' => $roleCounts,
+            ]);
+        } catch (Exception $e) {
+            error_log('Get user counts error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
     private function getBearerToken(): ?string
     {
         $authorization = null;

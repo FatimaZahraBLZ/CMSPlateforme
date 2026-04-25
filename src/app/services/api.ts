@@ -164,6 +164,27 @@ export class ApiService {
     }
   }
 
+  async getUserCountsByRole() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users/counts`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to fetch user counts');
+      }
+
+      return data.roleCounts || {};
+    } catch (error) {
+      console.error('Get user counts error:', error);
+      throw error;
+    }
+  }
+
   // Websites
   async getWebsites() {
     try {

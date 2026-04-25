@@ -97,6 +97,12 @@ if ($path === '/api/users' && $method === 'GET') {
     exit;
 }
 
+if ($path === '/api/users/counts' && $method === 'GET') {
+    $controller = new UsersController($pdo);
+    $controller->getUserCountsByRole();
+    exit;
+}
+
 if ($path === '/api/users' && $method === 'POST') {
     $controller = new UsersController($pdo);
     $controller->create();

@@ -1,36 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Shield, CheckCircle2, XCircle } from 'lucide-react';
+import { api } from '../../services/api';
+
+interface RoleCounts {
+  super_admin: number;
+  admin: number;
+  editor: number;
+  visitor: number;
+}
 
 export const RolesPage: React.FC = () => {
+  const [roleCounts, setRoleCounts] = useState<RoleCounts>({
+    super_admin: 0,
+    admin: 0,
+    editor: 0,
+    visitor: 0,
+  });
+  const [loadingCounts, setLoadingCounts] = useState(true);
+  const [countError, setCountError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUserCounts();
+  }, []);
+
+  const fetchUserCounts = async () => {
+    try {
+      setLoadingCounts(true);
+      setCountError(null);
+      console.log('Fetching user counts by role...');
+      const counts = await api.getUserCountsByRole();
+      console.log('User counts by role:', counts);
+      setRoleCounts(counts);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load user counts';
+      console.error('Fetch user counts error:', err);
+      setCountError(errorMsg);
+      // Keep default counts on error
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
   const roles = [
     {
       id: 'super_admin',
       name: 'Super Admin',
       description: 'Full platform access and control',
-      userCount: 2,
+      userCount: roleCounts.super_admin,
       color: 'bg-purple-100 text-purple-800',
     },
     {
       id: 'admin',
       name: 'Admin',
       description: 'Manage content, settings, and publish',
-      userCount: 3,
+      userCount: roleCounts.admin,
       color: 'bg-blue-100 text-blue-800',
     },
     {
       id: 'editor',
       name: 'Editor',
       description: 'Manage content and media only',
-      userCount: 3,
+      userCount: roleCounts.editor,
       color: 'bg-green-100 text-green-800',
     },
     {
       id: 'visitor',
       name: 'Visitor',
       description: 'Public website access only',
-      userCount: 0,
+      userCount: roleCounts.visitor,
       color: 'bg-gray-100 text-gray-800',
     },
   ];
@@ -135,8 +174,24 @@ export const RolesPage: React.FC = () => {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Roles & Permissions</h1>
-        <p className="text-gray-600 mt-2">Manage role-based access control for your platform</p>
+        <p className="text-gray-600 mt-2">Manage role-based access control for your plateforme</p>
       </div>
+
+      {/* Error Alert */}
+      {countError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">Could not load user counts: {countError}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Roles Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -151,7 +206,13 @@ export const RolesPage: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Shield className="w-8 h-8 text-indigo-600" />
-                <Badge className={role.color}>{role.userCount} users</Badge>
+                <Badge className={role.color}>
+                  {loadingCounts ? (
+                    <span className="inline-block animate-pulse">...</span>
+                  ) : (
+                    `${role.userCount} user${role.userCount !== 1 ? 's' : ''}`
+                  )}
+                </Badge>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{role.name}</h3>
