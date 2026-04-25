@@ -4,8 +4,13 @@
 export class ApiService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:8000') {
+  constructor(baseUrl: string = 'http://localhost:8001') {
     this.baseUrl = baseUrl;
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem('cms_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   // Authentication
@@ -39,46 +44,288 @@ export class ApiService {
     return Promise.resolve({ success: true });
   }
 
+  async validateToken() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/auth/validate`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Token validation failed');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      throw error;
+    }
+  }
+
+  // Users
+  async getUsers() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to fetch users');
+      }
+
+      // Ensure users array exists
+      if (data && !data.users) {
+        console.warn('API returned users but users array is missing, returning empty array');
+        data.users = [];
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get users error:', error);
+      throw error;
+    }
+  }
+
+  async createUser(userData: { name: string; email: string; password: string; role: string; status?: string }) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        credentials: 'include',
+        body: JSON.stringify(userData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to create user');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Create user error:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(userId: string, userData: Partial<{ name: string; email: string; password: string; role: string; status: string }>) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        credentials: 'include',
+        body: JSON.stringify(userData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to update user');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw error;
+    }
+  }
+
+  async deleteUser(userId: string) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to delete user');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Delete user error:', error);
+      throw error;
+    }
+  }
+
   // Websites
   async getWebsites() {
-    // TODO: Replace with actual API call
-    return Promise.resolve([]);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites`, {
+        headers: {
+          ...this.getAuthHeaders(),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to fetch websites (${res.status})`);
+      }
+      return data.websites || [];
+    } catch (error) {
+      console.error('Get websites error:', error);
+      throw error;
+    }
   }
 
   async createWebsite(data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify(data),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to create website (${res.status})`);
+      }
+      return response;
+    } catch (error) {
+      console.error('Create website error:', error);
+      throw error;
+    }
   }
 
   async updateWebsite(id: string, data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify(data),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to update website (${res.status})`);
+      }
+      return response;
+    } catch (error) {
+      console.error('Update website error:', error);
+      throw error;
+    }
   }
 
   async deleteWebsite(id: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: {
+          ...this.getAuthHeaders(),
+        },
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to delete website (${res.status})`);
+      }
+      return response;
+    } catch (error) {
+      console.error('Delete website error:', error);
+      throw error;
+    }
   }
 
   // Pages
-  async getPages(websiteId: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve([]);
+  async getPages(websiteId: string, language?: string) {
+    try {
+      const params = new URLSearchParams({ website_id: websiteId });
+      if (language) {
+        params.append('language', language);
+      }
+      const res = await fetch(`${this.baseUrl}/api/pages?${params.toString()}`, {
+        headers: {
+          ...this.getAuthHeaders(),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to fetch pages (${res.status})`);
+      }
+      return data.pages || [];
+    } catch (error) {
+      console.error('Get pages error:', error);
+      throw error;
+    }
   }
 
   async createPage(data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/pages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify(data),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to create page (${res.status})`);
+      }
+      return response.page || response;
+    } catch (error) {
+      console.error('Create page error:', error);
+      throw error;
+    }
   }
 
   async updatePage(id: string, data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/pages/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify(data),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to update page (${res.status})`);
+      }
+      return response.page || response;
+    } catch (error) {
+      console.error('Update page error:', error);
+      throw error;
+    }
   }
 
   async deletePage(id: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+    try {
+      const res = await fetch(`${this.baseUrl}/api/pages/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: {
+          ...this.getAuthHeaders(),
+        },
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to delete page (${res.status})`);
+      }
+      return response;
+    } catch (error) {
+      console.error('Delete page error:', error);
+      throw error;
+    }
   }
 
   // Articles
@@ -92,68 +339,46 @@ export class ApiService {
     return Promise.resolve({ success: true });
   }
 
-  async updateArticle(id: string, data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+  // Database Setup
+  async setupDatabase() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to setup database');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Setup database error:', error);
+      throw error;
+    }
   }
 
-  async deleteArticle(id: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
+  // System Diagnostics
+  async getDiagnostics() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/diagnose`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
 
-  // Media
-  async uploadMedia(file: File, websiteId: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true, url: '' });
-  }
+      const data = await res.json();
 
-  async getMedia(websiteId: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve([]);
-  }
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to get diagnostics');
+      }
 
-  async deleteMedia(id: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
-
-  // Users
-  async getUsers() {
-    // TODO: Replace with actual API call
-    return Promise.resolve([]);
-  }
-
-  async createUser(data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
-
-  async updateUser(id: string, data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
-
-  async deleteUser(id: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
-
-  // Settings
-  async getSettings(websiteId: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({});
-  }
-
-  async updateSettings(websiteId: string, data: any) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
-  }
-
-  // Publish
-  async publishWebsite(websiteId: string) {
-    // TODO: Replace with actual API call
-    return Promise.resolve({ success: true });
+      return data;
+    } catch (error) {
+      console.error('Diagnostics error:', error);
+      throw error;
+    }
   }
 }
 

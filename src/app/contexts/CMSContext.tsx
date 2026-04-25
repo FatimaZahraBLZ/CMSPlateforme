@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { WebsiteProject } from '../types';
+import { WebsiteProject, Language } from '../types';
 
 interface CMSContextType {
+  websites: WebsiteProject[];
+  setWebsites: (websites: WebsiteProject[]) => void;
   selectedWebsite: WebsiteProject | null;
   setSelectedWebsite: (website: WebsiteProject | null) => void;
-  currentLanguage: 'fr' | 'en' | 'ar';
-  setCurrentLanguage: (lang: 'fr' | 'en' | 'ar') => void;
+  currentLanguage: Language;
+  setCurrentLanguage: (lang: Language) => void;
 }
 
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
@@ -19,15 +21,26 @@ export const useCMS = () => {
 };
 
 export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [websites, setWebsitesState] = useState<WebsiteProject[]>([]);
   const [selectedWebsite, setSelectedWebsiteState] = useState<WebsiteProject | null>(null);
-  const [currentLanguage, setCurrentLanguage] = useState<'fr' | 'en' | 'ar'>('en');
+  const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
   useEffect(() => {
     const storedWebsite = localStorage.getItem('selected_website');
     if (storedWebsite) {
       setSelectedWebsiteState(JSON.parse(storedWebsite));
     }
+
+    const storedWebsites = localStorage.getItem('cms_websites');
+    if (storedWebsites) {
+      setWebsitesState(JSON.parse(storedWebsites));
+    }
   }, []);
+
+  const setWebsites = (newWebsites: WebsiteProject[]) => {
+    setWebsitesState(newWebsites);
+    localStorage.setItem('cms_websites', JSON.stringify(newWebsites));
+  };
 
   const setSelectedWebsite = (website: WebsiteProject | null) => {
     setSelectedWebsiteState(website);
@@ -40,7 +53,16 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <CMSContext.Provider value={{ selectedWebsite, setSelectedWebsite, currentLanguage, setCurrentLanguage }}>
+    <CMSContext.Provider
+      value={{
+        websites,
+        setWebsites,
+        selectedWebsite,
+        setSelectedWebsite,
+        currentLanguage,
+        setCurrentLanguage,
+      }}
+    >
       {children}
     </CMSContext.Provider>
   );

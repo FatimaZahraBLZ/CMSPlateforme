@@ -80,6 +80,46 @@ class AuthController
         ]);
     }
 
+    public function validate(): void
+    {
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? '';
+
+        if (empty($authHeader) || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'No token provided']);
+            return;
+        }
+
+        $token = $matches[1];
+        $payload = $this->authService->validateJwt($token);
+
+        if (!$payload) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid or expired token']);
+            return;
+        }
+
+        $user = $this->userModel->findById($payload['sub']);
+
+        if (!$user || $user['status'] !== 'active') {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'User not found or inactive']);
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'user' => [
+                'id' => $user['id'],
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role' => $user['role'],
+                'status' => $user['status']
+            ],
+        ]);
+    }
+
     private function respondInvalid(): void
     {
         http_response_code(401);

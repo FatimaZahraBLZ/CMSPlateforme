@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,16 +24,39 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  console.log('AuthProvider render, isLoading:', isLoading);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('cms_user');
-    const storedToken = localStorage.getItem('cms_token');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    const validateStoredSession = async () => {
+      const storedUser = localStorage.getItem('cms_user');
+      const storedToken = localStorage.getItem('cms_token');
+
+      if (!storedToken || !storedUser) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Validate token with backend
+        await api.validateToken();
+
+        // If validation succeeds, restore the session
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } catch (error) {
+        console.warn('Stored session is invalid, clearing:', error);
+        // Clear invalid session data
+        localStorage.removeItem('cms_user');
+        localStorage.removeItem('cms_token');
+        localStorage.removeItem('selected_website');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    validateStoredSession();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -76,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
