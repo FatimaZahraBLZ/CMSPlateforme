@@ -19,6 +19,7 @@ export interface WebsiteProject {
   name: string;
   client: string;
   domain: string;
+  subdomain: string;
   status: Status;
   defaultLanguage: Language;
   languages: Language[];

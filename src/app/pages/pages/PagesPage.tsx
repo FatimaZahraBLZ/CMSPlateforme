@@ -11,6 +11,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import { Page } from '../../types';
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+const slugify = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
+
 export const PagesPage: React.FC = () => {
   const { selectedWebsite, currentLanguage } = useCMS();
   const { user } = useAuth();
@@ -34,6 +47,42 @@ export const PagesPage: React.FC = () => {
     content: '',
     status: 'draft',
   });
+
+  // Track if slug was manually edited
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [checkingSlug, setCheckingSlug] = useState(false);
+
+  // Debounce slug check
+  useEffect(() => {
+    if (!formData.slug || !selectedWebsite) {
+      setSlugError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingSlug(true);
+      try {
+        const exists = await api.checkPageSlug(
+          selectedWebsite.id,
+          formData.slug,
+          currentLanguage || 'en',
+          editingPageId || undefined
+        );
+        if (exists) {
+          setSlugError(`Slug "${formData.slug}" is already in use. Please choose a different one.`);
+        } else {
+          setSlugError(null);
+        }
+      } catch (err) {
+        console.error('Slug check error:', err);
+      } finally {
+        setCheckingSlug(false);
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timer);
+  }, [formData.slug, selectedWebsite, editingPageId, currentLanguage]);
 
   // ============================================
   // 1. FETCH REAL API DATA (CRITICAL)
@@ -71,20 +120,27 @@ export const PagesPage: React.FC = () => {
   // 3. CREATE / UPDATE PAGE
   // ============================================
   const handleSavePage = async (publishNow: boolean = false) => {
-    if (!selectedWebsite || !formData.title || !formData.slug) {
-      showNotification('error', 'Please fill in all required fields');
+    if (!formData.title || !formData.slug) {
+      showNotification('error', 'Please fill in all required fields (title, slug)');
+      return;
+    }
+
+    if (slugError) {
+      showNotification('error', 'Please resolve the slug conflict before saving');
       return;
     }
 
     try {
       const pageData = {
-        title: formData.title,
-        slug: formData.slug,
+        title: formData.title.trim(),
+        slug: formData.slug.trim().replace(/^\/+/, ''), // Remove leading slashes
         content: formData.content,
         website_id: selectedWebsite.id,
-        language: currentLanguage,
+        language: currentLanguage || 'en',
         status: publishNow ? 'published' : formData.status,
       };
+
+      console.log('Sending page data:', pageData);
 
       if (editingPageId) {
         // UPDATE existing page
@@ -143,6 +199,7 @@ export const PagesPage: React.FC = () => {
       content: page.content,
       status: pageStatus,
     });
+    setSlugManuallyEdited(true); // Mark as manually edited when loading existing page
     setShowModal(true);
   };
 
@@ -157,6 +214,8 @@ export const PagesPage: React.FC = () => {
       status: 'draft',
     });
     setEditingPageId(null);
+    setSlugManuallyEdited(false);
+    setSlugError(null);
   };
 
   // ============================================
@@ -207,7 +266,7 @@ export const PagesPage: React.FC = () => {
     <div className="space-y-8">
       {/* NOTIFICATION BANNER */}
       {notification && (
-        <div className={`p-4 rounded-lg border ${
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border shadow-lg ${
           notification.type === 'success'
             ? 'bg-green-50 border-green-200 text-green-800'
             : 'bg-red-50 border-red-200 text-red-800'
@@ -367,14 +426,30 @@ export const PagesPage: React.FC = () => {
             label="Page Title *"
             placeholder="Enter page title"
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={(e) => {
+              const newTitle = e.target.value;
+              setFormData({ ...formData, title: newTitle });
+              
+              // Auto-generate slug from title (only if not manually edited and creating new page)
+              if (!editingPageId && !slugManuallyEdited) {
+                const newSlug = slugify(newTitle);
+                setFormData(prev => ({ ...prev, slug: newSlug }));
+              }
+            }}
           />
           <Input
             label="Slug *"
             placeholder="page-url-slug"
             value={formData.slug}
-            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, slug: e.target.value });
+              setSlugManuallyEdited(true);
+            }}
+            disabled={checkingSlug}
+            className={slugError ? 'border-red-500' : ''}
           />
+          {checkingSlug && <p className="text-sm text-blue-600">Checking availability...</p>}
+          {slugError && <p className="text-sm text-red-600">⚠️ {slugError}</p>}
           <Textarea
             label="Content"
             placeholder="Enter page content..."
@@ -402,6 +477,7 @@ export const PagesPage: React.FC = () => {
             <Button
               variant="success"
               onClick={() => handleSavePage(false)}
+              disabled={!!slugError || checkingSlug}
               className="flex-1"
             >
               {editingPageId ? 'Update Draft' : 'Save Draft'}
@@ -409,6 +485,7 @@ export const PagesPage: React.FC = () => {
             <Button
               variant="primary"
               onClick={() => handleSavePage(true)}
+              disabled={!!slugError || checkingSlug}
               className="flex-1"
             >
               {editingPageId ? 'Update & Publish' : 'Publish'}

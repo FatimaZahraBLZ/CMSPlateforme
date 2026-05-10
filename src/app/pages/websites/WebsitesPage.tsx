@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
@@ -7,7 +8,6 @@ import { useCMS } from '../../contexts/CMSContext';
 import { WebsiteProject } from '../../types';
 import { WebsiteSelector } from '../../components/WebsiteSelector';
 import { api } from '../../services/api';
-import { router } from '../../routes';
 
 type WizardStep = 'info' | 'domain' | 'languages' | 'theme' | 'review';
 
@@ -16,6 +16,7 @@ interface WebsiteFormData {
   client: string;
   description: string;
   domain: string;
+  subdomain: string;
   defaultLanguage: 'en' | 'fr' | 'ar';
   languages: ('en' | 'fr' | 'ar')[];
   theme: 'minimal' | 'business' | 'blog';
@@ -23,16 +24,30 @@ interface WebsiteFormData {
 
 const DRAFT_STORAGE_KEY = 'website_creation_draft';
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+const extractSubdomain = (domain: string): string => {
+  if (!domain) return '';
+  // Extract everything before the first dot
+  const parts = domain.split('.');
+  return parts[0] || '';
+};
+
 export const WebsitesPage: React.FC = () => {
   const { websites, selectedWebsite, setSelectedWebsite, setWebsites } = useCMS();
+  const navigate = useNavigate();
 
   // State management
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingWebsite, setEditingWebsite] = useState<WebsiteProject | null>(null);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [domainStatus, setDomainStatus] = useState<'checking' | 'available' | 'taken' | null>(null);
 
   const [formData, setFormData] = useState<WebsiteFormData>({
@@ -40,8 +55,23 @@ export const WebsitesPage: React.FC = () => {
     client: '',
     description: '',
     domain: '',
+    subdomain: '',
     defaultLanguage: 'en',
     languages: ['en'],
+    theme: 'minimal',
+  });
+
+  const [editFormData, setEditFormData] = useState<{
+    name: string;
+    client: string;
+    domain: string;
+    subdomain: string;
+    theme: 'minimal' | 'business' | 'blog';
+  }>({
+    name: '',
+    client: '',
+    domain: '',
+    subdomain: '',
     theme: 'minimal',
   });
 
@@ -251,7 +281,8 @@ export const WebsitesPage: React.FC = () => {
         name: formData.name,
         client: formData.client,
         domain: formData.domain,
-        status: 'draft' as const,
+        subdomain: formData.subdomain,
+        status: 'published' as const,
         defaultLanguage: formData.defaultLanguage,
         languages: formData.languages,
         theme: formData.theme,
@@ -274,7 +305,7 @@ export const WebsitesPage: React.FC = () => {
       // Redirect to dashboard with new website ID
       if (response.website?.id) {
         setSelectedWebsite(response.website);
-        router.navigate(`/dashboard?website_id=${response.website.id}`);
+        navigate(`/dashboard?website_id=${response.website.id}`);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to create website';
@@ -294,6 +325,7 @@ export const WebsitesPage: React.FC = () => {
       client: '',
       description: '',
       domain: '',
+      subdomain: '',
       defaultLanguage: 'en',
       languages: ['en'],
       theme: 'minimal',
@@ -301,6 +333,79 @@ export const WebsitesPage: React.FC = () => {
     setCurrentStep('info');
     setDomainStatus(null);
     clearDraft();
+  };
+
+  // ============================================
+  // 11. EDIT WEBSITE
+  // ============================================
+  const handleEditWebsite = (website: WebsiteProject) => {
+    setEditingWebsite(website);
+    setEditFormData({
+      name: website.name,
+      client: website.client,
+      domain: website.domain,
+      subdomain: website.subdomain || extractSubdomain(website.domain),
+      theme: website.theme,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveWebsite = async () => {
+    if (!editingWebsite || !editFormData.name.trim()) {
+      showNotification('error', 'Website name is required');
+      return;
+    }
+
+    try {
+      const updateData = {
+        name: editFormData.name.trim(),
+        client: editFormData.client.trim(),
+        domain: editFormData.domain.trim(),
+        subdomain: editFormData.subdomain.trim(),
+        theme: editFormData.theme,
+      };
+
+      await api.updateWebsite(editingWebsite.id, updateData);
+      showNotification('success', `Website "${editFormData.name}" updated successfully`);
+      
+      // Refresh websites
+      await fetchWebsites();
+      setShowEditModal(false);
+      setEditingWebsite(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update website';
+      showNotification('error', errorMsg);
+      console.error('Update website error:', err);
+    }
+  };
+
+  // ============================================
+  // 12. DELETE WEBSITE
+  // ============================================
+  const handleDeleteWebsite = async (website: WebsiteProject) => {
+    if (!window.confirm(`Are you sure you want to delete "${website.name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await api.deleteWebsite(website.id);
+      showNotification('success', `Website "${website.name}" deleted successfully`);
+      
+      // Refresh websites
+      await fetchWebsites();
+
+      // Clear selection if the deleted website was selected
+      if (selectedWebsite?.id === website.id) {
+        setSelectedWebsite(null);
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete website';
+      showNotification('error', errorMsg);
+      console.error('Delete website error:', err);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // ============================================
@@ -375,7 +480,8 @@ export const WebsitesPage: React.FC = () => {
                     value={formData.domain}
                     onChange={(e) => {
                       const domain = e.target.value;
-                      setFormData({ ...formData, domain });
+                      const subdomain = extractSubdomain(domain);
+                      setFormData({ ...formData, domain, subdomain });
                       checkDomainAvailability(domain);
                       saveDraft();
                     }}
@@ -403,6 +509,21 @@ export const WebsitesPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subdomain (Auto-filled)
+                </label>
+                <Input
+                  placeholder="e.g., client"
+                  value={formData.subdomain}
+                  disabled
+                  className="bg-gray-100 text-gray-600 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  The subdomain is automatically extracted from your domain. It's the part before the first dot.
+                </p>
               </div>
             </div>
           </div>
@@ -433,9 +554,9 @@ export const WebsitesPage: React.FC = () => {
                     saveDraft();
                   }}
                   options={[
-                    { value: 'en', label: '🇬🇧 English' },
-                    { value: 'fr', label: '🇫🇷 Français' },
-                    { value: 'ar', label: '🇸🇦 العربية' },
+                    { value: 'en', label: 'English' },
+                    { value: 'fr', label: 'Français' },
+                    { value: 'ar', label: 'العربية' },
                   ]}
                 />
               </div>
@@ -446,9 +567,9 @@ export const WebsitesPage: React.FC = () => {
                 </label>
                 <div className="space-y-3">
                   {[
-                    { code: 'en', name: '🇬🇧 English' },
-                    { code: 'fr', name: '🇫🇷 Français' },
-                    { code: 'ar', name: '🇸🇦 العربية' },
+                    { code: 'en', name: 'English' },
+                    { code: 'fr', name: 'Français' },
+                    { code: 'ar', name: 'العربية' },
                   ].map(({ code, name }) => (
                     <label key={code} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input
@@ -462,7 +583,7 @@ export const WebsitesPage: React.FC = () => {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 mt-3 p-3 bg-gray-50 rounded">
-                  💡 The default language is automatically included in supported languages
+                  ℹ️ The default language is automatically included in supported languages
                 </p>
               </div>
             </div>
@@ -484,19 +605,16 @@ export const WebsitesPage: React.FC = () => {
                     id: 'minimal',
                     name: 'Minimal',
                     description: 'Clean and simple design',
-                    icon: '✨'
                   },
                   {
                     id: 'business',
                     name: 'Business',
                     description: 'Professional corporate look',
-                    icon: '💼'
                   },
                   {
                     id: 'blog',
                     name: 'Blog',
                     description: 'Content-focused layout',
-                    icon: '📝'
                   },
                 ].map((theme) => (
                   <div
@@ -511,7 +629,23 @@ export const WebsitesPage: React.FC = () => {
                         : 'border-gray-200 hover:border-blue-300 bg-white'
                     }`}
                   >
-                    <div className="text-4xl mb-3">{theme.icon}</div>
+                    <div className="flex justify-center mb-3">
+                      {theme.id === 'minimal' && (
+                        <svg className="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                      )}
+                      {theme.id === 'business' && (
+                        <svg className="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4 0h1m-1 4h1m4 0h1m-1 4h1" />
+                        </svg>
+                      )}
+                      {theme.id === 'blog' && (
+                        <svg className="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      )}
+                    </div>
                     <h4 className="font-semibold text-gray-900 mb-1">{theme.name}</h4>
                     <p className="text-sm text-gray-600">{theme.description}</p>
                     {formData.theme === theme.id && (
@@ -553,6 +687,10 @@ export const WebsitesPage: React.FC = () => {
                   <span className="text-xs font-medium text-gray-500 uppercase">Domain</span>
                   <p className="text-gray-900 font-mono">{formData.domain}</p>
                 </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Subdomain</span>
+                  <p className="text-gray-900 font-mono">{formData.subdomain}</p>
+                </div>
                 {formData.description && (
                   <div>
                     <span className="text-xs font-medium text-gray-500 uppercase">Description</span>
@@ -566,8 +704,8 @@ export const WebsitesPage: React.FC = () => {
                 <div>
                   <span className="text-xs font-medium text-gray-500 uppercase">Default Language</span>
                   <p className="text-gray-900 font-medium">
-                    {formData.defaultLanguage === 'en' ? '🇬🇧 English' :
-                     formData.defaultLanguage === 'fr' ? '🇫🇷 Français' : '🇸🇦 العربية'}
+                    {formData.defaultLanguage === 'en' ? 'English' :
+                     formData.defaultLanguage === 'fr' ? 'Français' : 'العربية'}
                   </p>
                 </div>
                 <div>
@@ -575,7 +713,7 @@ export const WebsitesPage: React.FC = () => {
                   <div className="flex gap-2 mt-1">
                     {formData.languages.map(lang => (
                       <span key={lang} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {lang === 'en' ? '🇬🇧' : lang === 'fr' ? '🇫🇷' : '🇸🇦'} {lang.toUpperCase()}
+                        {lang.toUpperCase()}
                       </span>
                     ))}
                   </div>
@@ -583,16 +721,16 @@ export const WebsitesPage: React.FC = () => {
                 <div>
                   <span className="text-xs font-medium text-gray-500 uppercase">Theme</span>
                   <p className="text-gray-900 font-medium capitalize">
-                    {formData.theme === 'minimal' && '✨ Minimal'}
-                    {formData.theme === 'business' && '💼 Business'}
-                    {formData.theme === 'blog' && '📝 Blog'}
+                    {formData.theme === 'minimal' && 'Minimal'}
+                    {formData.theme === 'business' && 'Business'}
+                    {formData.theme === 'blog' && 'Blog'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">✨ What happens next?</h4>
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">What happens next?</h4>
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>✓ Website will be created in draft status</li>
                 <li>✓ Default pages (Home, About, Contact) will be generated</li>
@@ -610,22 +748,7 @@ export const WebsitesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Websites</h1>
-              <p className="text-gray-600">Manage your website projects</p>
-            </div>
-            <Button
-              onClick={() => setShowWizard(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-            >
-              Create New Website
-            </Button>
-          </div>
-        </div>
-      </div>
+    
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -634,8 +757,10 @@ export const WebsitesPage: React.FC = () => {
           <WebsiteSelector
             websites={websites}
             selectedWebsite={selectedWebsite}
-            onSelectWebsite={handleSelectWebsite}
-            loading={loading}
+            onSelect={handleSelectWebsite}
+            onCreate={() => setShowWizard(true)}
+            onEdit={handleEditWebsite}
+            onDelete={handleDeleteWebsite}
           />
         </div>
 
@@ -652,61 +777,6 @@ export const WebsitesPage: React.FC = () => {
                 <h3 className="text-sm font-medium text-red-800">Error loading websites</h3>
                 <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Websites Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {websites.map((website) => (
-            <div
-              key={website.id}
-              className={`bg-white rounded-lg shadow-sm border-2 p-6 cursor-pointer transition-all ${
-                selectedWebsite?.id === website.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => handleSelectWebsite(website)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{website.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{website.client || 'No client specified'}</p>
-                  <p className="text-sm text-gray-500 mt-1">{website.domain || 'No domain'}</p>
-                </div>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  website.status === 'active'
-                    ? 'bg-green-100 text-green-800'
-                    : website.status === 'draft'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {website.status}
-                </span>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-                <span>Default: {website.defaultLanguage?.toUpperCase()}</span>
-                <span>{website.languages?.length || 0} languages</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {websites.length === 0 && !loading && !error && (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No websites</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new website.</p>
-            <div className="mt-6">
-              <Button
-                onClick={() => setShowWizard(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-              >
-                Create New Website
-              </Button>
             </div>
           </div>
         )}
@@ -826,6 +896,78 @@ export const WebsitesPage: React.FC = () => {
                 </Button>
               )}
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* EDIT WEBSITE MODAL */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingWebsite(null);
+        }}
+        title="Edit Website"
+        size="md"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Website Name *"
+            placeholder="Enter website name"
+            value={editFormData.name}
+            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+          />
+          <Input
+            label="Client Name"
+            placeholder="Enter client name"
+            value={editFormData.client}
+            onChange={(e) => setEditFormData({ ...editFormData, client: e.target.value })}
+          />
+          <Input
+            label="Domain"
+            placeholder="e.g., example.com"
+            value={editFormData.domain}
+            onChange={(e) => {
+              const domain = e.target.value;
+              const subdomain = extractSubdomain(domain);
+              setEditFormData({ ...editFormData, domain, subdomain });
+            }}
+          />
+          <Input
+            label="Subdomain (Auto-filled)"
+            placeholder="e.g., example"
+            value={editFormData.subdomain}
+            disabled
+            className="bg-gray-100 text-gray-600 cursor-not-allowed"
+          />
+          <Select
+            label="Theme"
+            value={editFormData.theme}
+            onChange={(e) => setEditFormData({ ...editFormData, theme: e.target.value as 'minimal' | 'business' | 'blog' })}
+            options={[
+              { value: 'minimal', label: 'Minimal' },
+              { value: 'business', label: 'Business' },
+              { value: 'blog', label: 'Blog' },
+            ]}
+          />
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowEditModal(false);
+                setEditingWebsite(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveWebsite}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Save Changes
+            </Button>
           </div>
         </div>
       </Modal>

@@ -2,10 +2,14 @@
 // This file provides a structure for API calls that will eventually connect to your PHP backend
 
 export class ApiService {
-  private baseUrl: string;
+  public baseUrl: string;
 
   constructor(baseUrl: string = 'http://localhost:8001') {
     this.baseUrl = baseUrl;
+  }
+
+  get baseURL(): string {
+    return this.baseUrl;
   }
 
   private getAuthHeaders(): Record<string, string> {
@@ -61,6 +65,66 @@ export class ApiService {
       return data;
     } catch (error) {
       console.error('Token validation error:', error);
+      throw error;
+    }
+  }
+
+  // Public - Get website by subdomain (NO AUTH)
+  async getPublicWebsite(subdomain: string) {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/public/website?subdomain=${subdomain}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Website not found');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get public website error:', error);
+      throw error;
+    }
+  }
+
+  // Public - Get pages for a website
+  async getPublicPages(websiteId: string, language: string = 'en') {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/public/pages?website_id=${websiteId}&language=${language}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Pages not found');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get public pages error:', error);
+      throw error;
+    }
+  }
+
+  // Public - Get a single page by slug
+  async getPublicPage(websiteId: string, slug: string) {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/public/page?website_id=${websiteId}&slug=${slug}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Page not found');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get public page error:', error);
       throw error;
     }
   }
@@ -265,6 +329,46 @@ export class ApiService {
     }
   }
 
+  async checkDomain(domain: string, excludeWebsiteId?: string) {
+    try {
+      const params = new URLSearchParams({ domain });
+      if (excludeWebsiteId) {
+        params.append('exclude_id', excludeWebsiteId);
+      }
+
+      const res = await fetch(`${this.baseUrl}/api/websites/check-domain?${params}`, {
+        headers: this.getAuthHeaders(),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to check domain (${res.status})`);
+      }
+      return response.exists || false;
+    } catch (error) {
+      console.error('Check domain error:', error);
+      throw error;
+    }
+  }
+
+  async getPublicWebsiteByDomain(domain: string) {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/public/website-by-domain?domain=${encodeURIComponent(domain)}`
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Website not found');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get website by domain error:', error);
+      throw error;
+    }
+  }
+
   // Pages
   async getPages(websiteId: string, language?: string) {
     try {
@@ -349,6 +453,31 @@ export class ApiService {
     }
   }
 
+  async checkPageSlug(websiteId: string, slug: string, language: string = 'en', excludePageId?: string) {
+    try {
+      const params = new URLSearchParams({
+        website_id: websiteId,
+        slug,
+        language,
+      });
+      if (excludePageId) {
+        params.append('exclude_id', excludePageId);
+      }
+
+      const res = await fetch(`${this.baseUrl}/api/pages/check-slug?${params}`, {
+        headers: this.getAuthHeaders(),
+      });
+      const response = await res.json();
+      if (!res.ok) {
+        throw new Error(response?.message || `Failed to check slug (${res.status})`);
+      }
+      return response.exists || false;
+    } catch (error) {
+      console.error('Check slug error:', error);
+      throw error;
+    }
+  }
+
   // Articles
   async getArticles(websiteId: string) {
     // TODO: Replace with actual API call
@@ -377,6 +506,27 @@ export class ApiService {
       return data;
     } catch (error) {
       console.error('Setup database error:', error);
+      throw error;
+    }
+  }
+
+  // Database Migration
+  async migrateDatabase() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/migrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to migrate database');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Migrate database error:', error);
       throw error;
     }
   }

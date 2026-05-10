@@ -37,7 +37,7 @@ class PagesController
             return;
         }
 
-        if (!$this->pageModel->userCanAccessWebsite($payload['sub'], $websiteId)) {
+        if (!$this->pageModel->getUserRoleForWebsite($payload['sub'], $websiteId)) {
             $this->respondUnauthorized('Access denied for this website');
             return;
         }
@@ -68,18 +68,25 @@ class PagesController
             return;
         }
 
-        if (!$this->pageModel->userCanAccessWebsite($payload['sub'], $data['website_id'])) {
+        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $data['website_id']);
+        if (!$role || !in_array($role, ['admin', 'editor'])) {
             $this->respondUnauthorized('Access denied for this website');
             return;
         }
 
-        $page = $this->pageModel->createPage($data);
-        if (!$page) {
-            $this->respondServerError('Could not create page');
+        try {
+            $page = $this->pageModel->createPage($data, $payload['sub']);
+            if (!$page) {
+                $this->respondServerError('Could not create page');
+                return;
+            }
+
+            echo json_encode(['status' => 'success', 'page' => $page]);
+        } catch (PDOException $e) {
+            error_log('Create page error: ' . $e->getMessage());
+            $this->respondBadRequest($e->getMessage());
             return;
         }
-
-        echo json_encode(['status' => 'success', 'page' => $page]);
     }
 
     public function update(string $pageId): void
@@ -102,7 +109,7 @@ class PagesController
             return;
         }
 
-        if (!$this->pageModel->userCanAccessWebsite($payload['sub'], $existingPage['website_id'])) {
+        if (!$this->pageModel->getUserRoleForWebsite($payload['sub'], $existingPage['website_id'])) {
             $this->respondUnauthorized('Access denied for this website');
             return;
         }
@@ -113,7 +120,7 @@ class PagesController
             return;
         }
 
-        $success = $this->pageModel->updatePage($pageId, $data);
+        $success = $this->pageModel->updatePage($pageId, $data, $payload['sub']);
         if (!$success) {
             $this->respondServerError('Could not update page');
             return;
@@ -143,8 +150,9 @@ class PagesController
             return;
         }
 
-        if (!$this->pageModel->userCanAccessWebsite($payload['sub'], $existingPage['website_id'])) {
-            $this->respondUnauthorized('Access denied for this website');
+        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $existingPage['website_id']);
+        if ($role !== 'admin') {
+            $this->respondUnauthorized('Only admins can delete pages');
             return;
         }
 
@@ -155,6 +163,40 @@ class PagesController
         }
 
         echo json_encode(['status' => 'success']);
+    }
+
+    public function checkSlug(): void
+    {
+        $token = $this->getBearerToken();
+        if (!$token) {
+            $this->respondUnauthorized('Authorization token is required');
+            return;
+        }
+
+        $payload = $this->authService->validateJwt($token);
+        if (!$payload || empty($payload['sub'])) {
+            $this->respondUnauthorized('Invalid or expired token');
+            return;
+        }
+
+        $websiteId = $_GET['website_id'] ?? null;
+        $slug = $_GET['slug'] ?? null;
+        $language = $_GET['language'] ?? 'en';
+        $pageId = $_GET['exclude_id'] ?? null; // For updates, exclude current page
+
+        if (!$websiteId || !$slug) {
+            $this->respondBadRequest('website_id and slug are required');
+            return;
+        }
+
+        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $websiteId);
+        if (!$role) {
+            $this->respondUnauthorized('Access denied for this website');
+            return;
+        }
+
+        $exists = $this->pageModel->slugExists($websiteId, $slug, $language, $pageId);
+        echo json_encode(['status' => 'success', 'exists' => $exists, 'slug' => $slug]);
     }
 
     private function getBearerToken(): ?string

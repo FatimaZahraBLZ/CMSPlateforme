@@ -27,14 +27,17 @@ try {
         CREATE TABLE IF NOT EXISTS websites (
             id VARCHAR(36) PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
+            subdomain VARCHAR(255),
             client VARCHAR(255),
             domain VARCHAR(255),
             status ENUM('draft', 'active', 'archived') DEFAULT 'draft',
             default_language VARCHAR(10) DEFAULT 'en',
             languages JSON,
             theme ENUM('minimal', 'business', 'blog') DEFAULT 'minimal',
+            created_by VARCHAR(36),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
         )
     ");
 
@@ -44,10 +47,12 @@ try {
             id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
             user_id VARCHAR(36) NOT NULL,
             website_id VARCHAR(36) NOT NULL,
-            role ENUM('super_admin', 'admin', 'editor') DEFAULT 'editor',
+            role ENUM('admin', 'editor') NOT NULL DEFAULT 'editor',
+            granted_by VARCHAR(36),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (website_id) REFERENCES websites(id) ON DELETE CASCADE,
+            FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE SET NULL,
             UNIQUE KEY unique_user_website (user_id, website_id)
         )
     ");
@@ -60,12 +65,13 @@ try {
             title VARCHAR(255) NOT NULL,
             slug VARCHAR(255) NOT NULL,
             content LONGTEXT,
+            language VARCHAR(10) DEFAULT 'en',
             status ENUM('draft', 'published', 'archived') DEFAULT 'draft',
             is_homepage BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (website_id) REFERENCES websites(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_website_slug (website_id, slug)
+            UNIQUE KEY unique_website_slug_language (website_id, slug, language)
         )
     ");
 

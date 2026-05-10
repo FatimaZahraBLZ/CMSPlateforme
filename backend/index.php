@@ -3,25 +3,18 @@
 
 header('Content-Type: application/json');
 
+// CORS handling
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$allowed_origins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+$allowed_origins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
-if (in_array($origin, $allowed_origins) || $_SERVER['REQUEST_METHOD'] === 'OPTIONS' || strpos($origin, 'localhost') !== false) {
-    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
+if (in_array($origin, $allowed_origins) || strpos($origin, 'localhost') !== false) {
+    header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 }
 
-// Built-in PHP server router support (allow static files, route all others to index.php)
-if (php_sapi_name() === 'cli-server') {
-    $url = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $file = __DIR__ . $url;
-    if (is_file($file)) {
-        return false;
-    }
-}
-
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -32,6 +25,8 @@ require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/WebsitesController.php';
 require_once __DIR__ . '/controllers/PagesController.php';
 require_once __DIR__ . '/controllers/UsersController.php';
+require_once __DIR__ . '/controllers/PublicController.php';
+
 
 $pdo = getPDO();
 $request_uri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -64,9 +59,36 @@ if ($path === '/api/websites' && $method === 'POST') {
     exit;
 }
 
+if ($path === '/api/websites/check-domain' && $method === 'GET') {
+    $controller = new WebsitesController($pdo);
+    $controller->checkDomain();
+    exit;
+}
+
+if (preg_match('#^/api/websites/([^/]+)$#', $path, $matches)) {
+    $websiteId = $matches[1];
+    $controller = new WebsitesController($pdo);
+
+    if ($method === 'PUT') {
+        $controller->update($websiteId);
+        exit;
+    }
+
+    if ($method === 'DELETE') {
+        $controller->delete($websiteId);
+        exit;
+    }
+}
+
 if ($path === '/api/pages' && $method === 'GET') {
     $controller = new PagesController($pdo);
     $controller->index();
+    exit;
+}
+
+if ($path === '/api/pages/check-slug' && $method === 'GET') {
+    $controller = new PagesController($pdo);
+    $controller->checkSlug();
     exit;
 }
 
@@ -135,6 +157,12 @@ if ($path === '/api/setup' && $method === 'POST') {
     exit;
 }
 
+// Database migration endpoint
+if ($path === '/api/migrate' && $method === 'POST') {
+    require_once __DIR__ . '/migrate_database.php';
+    exit;
+}
+
 // Diagnostic endpoint (no auth required for troubleshooting)
 if ($path === '/api/diagnose' && $method === 'GET') {
     try {
@@ -171,6 +199,34 @@ if ($path === '/api/diagnose' && $method === 'GET') {
         ]);
         exit;
     }
+}
+
+// PUBLIC API - Get website by subdomain
+if ($path === '/api/public/website' && $method === 'GET') {
+    $controller = new PublicController($pdo);
+    $controller->getWebsiteBySubdomain();
+    exit;
+}
+
+// PUBLIC API - Get website by domain
+if ($path === '/api/public/website-by-domain' && $method === 'GET') {
+    $controller = new PublicController($pdo);
+    $controller->getWebsiteByDomain();
+    exit;
+}
+
+// PUBLIC API - Get pages for website
+if ($path === '/api/public/pages' && $method === 'GET') {
+    $controller = new PublicController($pdo);
+    $controller->getPages();
+    exit;
+}
+
+// PUBLIC API - Get single page
+if ($path === '/api/public/page' && $method === 'GET') {
+    $controller = new PublicController($pdo);
+    $controller->getPage();
+    exit;
 }
 
 http_response_code(404);

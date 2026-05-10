@@ -9,8 +9,6 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
-  console.log('Modal render:', { isOpen, title, hasChildren: !!children });
-
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';

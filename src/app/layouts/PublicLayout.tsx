@@ -1,8 +1,77 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link } from 'react-router';
 import { Logo } from '../components/Logo';
+import { SubdomainService } from '../services/SubdomainService';
+import { api } from '../services/api';
+
+interface Website {
+  id: string;
+  name: string;
+  subdomain: string;
+  domain: string;
+  status: string;
+  default_language: string;
+}
 
 export const PublicLayout: React.FC = () => {
+  const [website, setWebsite] = useState<Website | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadWebsite = async () => {
+      try {
+        const subdomain = SubdomainService.getSubdomain();
+
+        if (!subdomain) {
+          setError('No subdomain detected');
+          setLoading(false);
+          return;
+        }
+
+        const response = await api.getPublicWebsite(subdomain);
+
+        if (response.status === 'success' && response.website) {
+          setWebsite(response.website);
+        } else {
+          setError('Website not found');
+        }
+      } catch (err) {
+        console.error('Failed to load website:', err);
+        setError('Failed to load website');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWebsite();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading website...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !website) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Website Not Found</h1>
+          <p className="text-gray-600 mb-8">{error || 'The requested website could not be found'}</p>
+          <Link to="/" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Go to Main Platform
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Public Header */}
@@ -11,28 +80,28 @@ export const PublicLayout: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
               <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                <Logo className="w-10 h-10" alt="CMS logo" />
+                <Logo className="w-10 h-10" alt="Logo" />
               </div>
-              <span className="text-xl font-bold text-gray-900">CMS Platform</span>
+              <span className="text-xl font-bold text-gray-900">{website.name}</span>
             </div>
 
             <nav className="hidden md:flex items-center gap-8">
-              <Link to="/public" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors">
                 Home
               </Link>
-              <Link to="/public/about" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
                 About
               </Link>
-              <Link to="/public/services" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/services" className="text-gray-700 hover:text-blue-600 transition-colors">
                 Services
               </Link>
-              <Link to="/public/projects" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/projects" className="text-gray-700 hover:text-blue-600 transition-colors">
                 Projects
               </Link>
-              <Link to="/public/blog" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/blog" className="text-gray-700 hover:text-blue-600 transition-colors">
                 Blog
               </Link>
-              <Link to="/public/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
+              <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
                 Contact
               </Link>
             </nav>
@@ -45,7 +114,7 @@ export const PublicLayout: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <Outlet />
+      <Outlet context={{ website }} />
 
       {/* Public Footer */}
       <footer className="bg-gray-900 text-white mt-20">
@@ -54,9 +123,9 @@ export const PublicLayout: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                  <Logo className="w-10 h-10" alt="CMS logo" />
+                  <Logo className="w-10 h-10" alt="Logo" />
                 </div>
-                <span className="text-xl font-bold">CMS Platform</span>
+                <span className="text-xl font-bold">{website.name}</span>
               </div>
               <p className="text-gray-400 text-sm">
                 Building amazing digital experiences for modern businesses.
@@ -66,18 +135,18 @@ export const PublicLayout: React.FC = () => {
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/public/about" className="hover:text-white transition-colors">About</Link></li>
-                <li><Link to="/public" className="hover:text-white transition-colors">Careers</Link></li>
-                <li><Link to="/public" className="hover:text-white transition-colors">Team</Link></li>
+                <li><Link to="/about" className="hover:text-white transition-colors">About</Link></li>
+                <li><Link to="/" className="hover:text-white transition-colors">Careers</Link></li>
+                <li><Link to="/" className="hover:text-white transition-colors">Team</Link></li>
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold mb-4">Resources</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/public/blog" className="hover:text-white transition-colors">Blog</Link></li>
-                <li><Link to="/public" className="hover:text-white transition-colors">Documentation</Link></li>
-                <li><Link to="/public" className="hover:text-white transition-colors">Support</Link></li>
+                <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
+                <li><Link to="/" className="hover:text-white transition-colors">Documentation</Link></li>
+                <li><Link to="/" className="hover:text-white transition-colors">Support</Link></li>
               </ul>
             </div>
 
@@ -91,7 +160,7 @@ export const PublicLayout: React.FC = () => {
                 </a>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417a9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                   </svg>
                 </a>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
@@ -104,7 +173,7 @@ export const PublicLayout: React.FC = () => {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2026 CMS Platform. All rights reserved.</p>
+            <p>&copy; 2026 {website.name}. All rights reserved.</p>
           </div>
         </div>
       </footer>

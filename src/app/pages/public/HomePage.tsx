@@ -1,7 +1,120 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { SubdomainService } from '../../services/SubdomainService';
+import { api } from '../../services/api';
+
+interface Page {
+  id: number;
+  title: string;
+  slug: string;
+  content: string;
+  language: string;
+  status: string;
+  meta_title?: string;
+  meta_description?: string;
+  meta_image?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const HomePage: React.FC = () => {
+  const [homePage, setHomePage] = useState<Page | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadHomePage = async () => {
+      try {
+        const subdomain = SubdomainService.getSubdomain();
+        if (!subdomain) {
+          setError('No subdomain detected');
+          setLoading(false);
+          return;
+        }
+
+        // Get the website by subdomain
+        const websiteResponse = await api.getPublicWebsite(subdomain);
+        if (!websiteResponse.website) {
+          setError('Website not found');
+          setLoading(false);
+          return;
+        }
+
+        const websiteId = websiteResponse.website.id;
+
+        // Get the home page (slug = 'home')
+        const pageResponse = await api.getPublicPage(websiteId, 'home');
+
+        if (pageResponse.status === 'success' && pageResponse.page) {
+          setHomePage(pageResponse.page);
+        } else {
+          // If no home page exists, show default content
+          setHomePage(null);
+        }
+      } catch (err) {
+        setError('Failed to load home page');
+        console.error('Error loading home page:', err);
+        // Show default content on error
+        setHomePage(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHomePage();
+  }, []);
+
+  useEffect(() => {
+    // Update document title and meta tags
+    if (homePage) {
+      document.title = homePage.meta_title || homePage.title || 'CMS Platform';
+
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', homePage.meta_description || '');
+      }
+
+      const metaImage = document.querySelector('meta[property="og:image"]');
+      if (metaImage && homePage.meta_image) {
+        metaImage.setAttribute('content', homePage.meta_image);
+      }
+    }
+  }, [homePage]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // If we have dynamic content, render it
+  if (homePage) {
+    return (
+      <div className="min-h-screen bg-white">
+        {/* Page Header */}
+        <div className="bg-gray-50 py-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">{homePage.title}</h1>
+            {homePage.meta_description && (
+              <p className="text-xl text-gray-600">{homePage.meta_description}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Page Content */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div
+            className="prose prose-lg max-w-none"
+            dangerouslySetInnerHTML={{ __html: homePage.content }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Default static content when no home page exists
   return (
     <div>
       {/* Hero Section */}
@@ -9,17 +122,17 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl mb-6">
-              Build Amazing Digital Experiences
+              Welcome to Our Website
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8">
-              Create stunning websites with our powerful CMS platform. Easy to use, fully customizable, and built for performance.
+              This website is powered by CMS Platform. Create and manage your content easily.
             </p>
             <div className="flex gap-4 justify-center">
               <button className="bg-white text-blue-600 px-8 py-4 rounded-lg font-medium hover:bg-blue-50 transition-colors">
-                Get Started Free
+                Get Started
               </button>
               <button className="border-2 border-white text-white px-8 py-4 rounded-lg font-medium hover:bg-white hover:text-blue-600 transition-colors">
-                View Demo
+                Learn More
               </button>
             </div>
           </div>
