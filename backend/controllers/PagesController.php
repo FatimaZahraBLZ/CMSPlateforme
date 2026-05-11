@@ -3,18 +3,21 @@
 
 require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../models/PageModel.php';
+require_once __DIR__ . '/../models/MenuModel.php';
 
 class PagesController
 {
     private PDO $pdo;
     private AuthService $authService;
     private PageModel $pageModel;
+    private MenuModel $menuModel;
 
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
         $this->authService = new AuthService($pdo);
         $this->pageModel = new PageModel($pdo);
+        $this->menuModel = new MenuModel($pdo);
     }
 
     public function index(): void
@@ -79,6 +82,11 @@ class PagesController
             if (!$page) {
                 $this->respondServerError('Could not create page');
                 return;
+            }
+
+            // Auto-create menu item for published pages
+            if ($page['status'] === 'published') {
+                $this->autoCreateMenuItemForPage($page);
             }
 
             echo json_encode(['status' => 'success', 'page' => $page]);
@@ -156,6 +164,9 @@ class PagesController
             return;
         }
 
+        // Delete all menu items linked to this page
+        $this->menuModel->deleteMenuItemsByPageId($pageId);
+
         $success = $this->pageModel->deletePage($pageId);
         if (!$success) {
             $this->respondServerError('Could not delete page');
@@ -197,6 +208,49 @@ class PagesController
 
         $exists = $this->pageModel->slugExists($websiteId, $slug, $language, $pageId);
         echo json_encode(['status' => 'success', 'exists' => $exists, 'slug' => $slug]);
+    }
+
+    /**
+     * Auto-create menu item when a page is created
+     */
+    private function autoCreateMenuItemForPage(array $page): void
+    {
+        try {
+            // Find the header menu for this website and language
+            $menu = $this->menuModel->getMenuByType($page['website_id'], 'header', $page['language']);
+
+            if (!$menu) {
+                // If no header menu exists, create one
+                $menuId = $this->menuModel->createMenu(
+                    $page['website_id'],
+                    'header',
+                    'Main Menu',
+                    $page['language']
+                );
+                if (!$menuId) {
+                    error_log('Could not create header menu for page: ' . $page['id']);
+                    return;
+                }
+            } else {
+                $menuId = $menu['id'];
+            }
+
+            // Create menu item linked to the page
+            $this->menuModel->createMenuItem(
+                $menuId,
+                $page['title'],
+                'page',
+                null, // Auto-assign order position
+                $page['id'],
+                null, // No custom link
+                true // is_active
+            );
+
+            error_log('Auto-created menu item for page: ' . $page['id']);
+        } catch (Exception $e) {
+            error_log('Error auto-creating menu item: ' . $e->getMessage());
+            // Don't fail the page creation if menu item creation fails
+        }
     }
 
     private function getBearerToken(): ?string

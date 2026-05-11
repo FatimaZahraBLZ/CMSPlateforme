@@ -24,6 +24,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/WebsitesController.php';
 require_once __DIR__ . '/controllers/PagesController.php';
+require_once __DIR__ . '/controllers/MenuController.php';
 require_once __DIR__ . '/controllers/UsersController.php';
 require_once __DIR__ . '/controllers/PublicController.php';
 
@@ -31,7 +32,7 @@ require_once __DIR__ . '/controllers/PublicController.php';
 $pdo = getPDO();
 $request_uri = $_SERVER['REQUEST_URI'] ?? '/';
 $path = parse_url($request_uri, PHP_URL_PATH);
-$path = strtolower(trim($path));
+$path = rtrim(strtolower(trim($path)), '/');
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Basic API router
@@ -109,6 +110,46 @@ if (preg_match('#^/api/pages/([^/]+)$#', $path, $matches)) {
 
     if ($method === 'DELETE') {
         $controller->delete($pageId);
+        exit;
+    }
+}
+
+// Menu routes
+if ($path === '/api/menus' && $method === 'GET') {
+    $controller = new MenuController($pdo);
+    $controller->getMenus();
+    exit;
+}
+
+if ($path === '/api/menu-items' && $method === 'GET') {
+    $controller = new MenuController($pdo);
+    $controller->getMenuItems();
+    exit;
+}
+
+if ($path === '/api/menu-items' && $method === 'POST') {
+    $controller = new MenuController($pdo);
+    $controller->createMenuItem();
+    exit;
+}
+
+if ($path === '/api/menus/reorder' && $method === 'POST') {
+    $controller = new MenuController($pdo);
+    $controller->reorderMenuItems();
+    exit;
+}
+
+if (preg_match('#^/api/menu-items/([^/]+)$#', $path, $matches)) {
+    $menuItemId = $matches[1];
+    $controller = new MenuController($pdo);
+
+    if ($method === 'PUT') {
+        $controller->updateMenuItem($menuItemId);
+        exit;
+    }
+
+    if ($method === 'DELETE') {
+        $controller->deleteMenuItem($menuItemId);
         exit;
     }
 }
@@ -226,6 +267,13 @@ if ($path === '/api/public/pages' && $method === 'GET') {
 if ($path === '/api/public/page' && $method === 'GET') {
     $controller = new PublicController($pdo);
     $controller->getPage();
+    exit;
+}
+
+// PUBLIC API - Get menu items (for public website navigation)
+if ($path === '/api/public/menu-items' && $method === 'GET') {
+    $controller = new MenuController($pdo);
+    $controller->getMenuItems();
     exit;
 }
 
