@@ -25,34 +25,42 @@ class MenuController
      */
     public function getMenus(): void
     {
-        $token = $this->getBearerToken();
-        if (!$token) {
-            $this->respondUnauthorized('Authorization token is required');
-            return;
+        try {
+            $token = $this->getBearerToken();
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $websiteId = $_GET['website_id'] ?? null;
+            $language = $_GET['language'] ?? null;
+
+            if (!$websiteId) {
+                $this->respondBadRequest('website_id is required');
+                return;
+            }
+
+            $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $websiteId);
+            if (!$role) {
+                $this->respondUnauthorized('Access denied for this website');
+                return;
+            }
+
+            $menus = $this->menuModel->getMenusForWebsite($websiteId, $language);
+            echo json_encode(['status' => 'success', 'menus' => $menus]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
         }
-
-        $payload = $this->authService->validateJwt($token);
-        if (!$payload || empty($payload['sub'])) {
-            $this->respondUnauthorized('Invalid or expired token');
-            return;
-        }
-
-        $websiteId = $_GET['website_id'] ?? null;
-        $language = $_GET['language'] ?? null;
-
-        if (!$websiteId) {
-            $this->respondBadRequest('website_id is required');
-            return;
-        }
-
-        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $websiteId);
-        if (!$role) {
-            $this->respondUnauthorized('Access denied for this website');
-            return;
-        }
-
-        $menus = $this->menuModel->getMenusForWebsite($websiteId, $language);
-        echo json_encode(['status' => 'success', 'menus' => $menus]);
     }
 
     /**
@@ -60,29 +68,37 @@ class MenuController
      */
     public function getMenuItems(): void
     {
-        $menuId = $_GET['menu_id'] ?? null;
-        $websiteId = $_GET['website_id'] ?? null;
+        try {
+            $menuId = $_GET['menu_id'] ?? null;
+            $websiteId = $_GET['website_id'] ?? null;
 
-        if (!$menuId || !$websiteId) {
-            $this->respondBadRequest('menu_id and website_id are required');
-            return;
+            if (!$menuId || !$websiteId) {
+                $this->respondBadRequest('menu_id and website_id are required');
+                return;
+            }
+
+            // Public endpoint - no authentication required for public menus
+            $menu = $this->menuModel->getMenuById($menuId);
+            if (!$menu) {
+                $this->respondBadRequest('Menu not found');
+                return;
+            }
+
+            // Verify menu belongs to the requested website
+            if ($menu['website_id'] !== $websiteId) {
+                $this->respondBadRequest('Menu does not belong to this website');
+                return;
+            }
+
+            $menuItems = $this->menuModel->getMenuItems($menuId);
+            echo json_encode(['status' => 'success', 'items' => $menuItems]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
         }
-
-        // Public endpoint - no authentication required for public menus
-        $menu = $this->menuModel->getMenuById($menuId);
-        if (!$menu) {
-            $this->respondBadRequest('Menu not found');
-            return;
-        }
-
-        // Verify menu belongs to the requested website
-        if ($menu['website_id'] !== $websiteId) {
-            $this->respondBadRequest('Menu does not belong to this website');
-            return;
-        }
-
-        $menuItems = $this->menuModel->getMenuItems($menuId);
-        echo json_encode(['status' => 'success', 'items' => $menuItems]);
     }
 
     /**

@@ -1,11 +1,13 @@
 <?php
 // backend/controllers/PublicController.php
-
+require_once __DIR__ . '/../models/ThemeModel.php';
 class PublicController {
     private $pdo;
+    private ThemeModel $themeModel;
 
     public function __construct($pdo) {
         $this->pdo = $pdo;
+        $this->themeModel = new ThemeModel($pdo);
     }
 
     /**
@@ -222,6 +224,176 @@ class PublicController {
                 'status' => 'error',
                 'message' => 'Server error',
                 'details' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * GET /api/public/page-with-layout?website_id=123&slug=about-us&language=en
+     * 
+     * Complete page rendering data including:
+     * - Page content
+     * - Theme/layout configuration
+     * - Menu navigation
+     * - Metadata for SEO
+     * 
+     * CRITICAL: Only returns PUBLISHED pages with is_deleted=FALSE
+     */
+    public function getPageWithLayout() {
+        try {
+            $websiteId = $_GET['website_id'] ?? null;
+            $slug = $_GET['slug'] ?? null;
+            $language = $_GET['language'] ?? 'en';
+
+            if (!$websiteId || !$slug) {
+                http_response_code(400);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'website_id and slug are required'
+                ]);
+                return;
+            }
+
+            // 🔒 Get published page only
+            $stmt = $this->pdo->prepare("
+                SELECT id, title, slug, content, template, image, 
+                       language, meta_title, meta_description, meta_image, excerpt
+                FROM pages
+                WHERE website_id = ? AND slug = ? AND language = ? 
+                AND status = 'published' AND is_deleted = FALSE
+                LIMIT 1
+            ");
+
+            $stmt->execute([$websiteId, $slug, $language]);
+            $page = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$page) {
+                http_response_code(404);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Page not found or not published'
+                ]);
+                return;
+            }
+
+            // Get layout configuration (theme-based)
+            $layout = $this->getPageLayout($websiteId, $page['template'] ?? 'default');
+
+            // Get header menu (published items only)
+            $headerMenu = $this->getPublishedMenu($websiteId, 'header', $language);
+
+            // Get footer menu (published items only)
+            $footerMenu = $this->getPublishedMenu($websiteId, 'footer', $language);
+
+            echo json_encode([
+                'status' => 'success',
+                'page' => $page,
+                'layout' => $layout,
+                'navigation' => [
+                    'header' => $headerMenu,
+                    'footer' => $footerMenu
+                ],
+                'metadata' => [
+                    'title' => $page['meta_title'] ?? $page['title'],
+                    'description' => $page['meta_description'] ?? $page['excerpt'],
+                    'image' => $page['meta_image'] ?? $page['image']
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Internal server error'
+            ]);
+        }
+    }
+
+    /**
+     * Get published menu items (excludes deleted/unpublished pages)
+     * CRITICAL: Only returns items linked to published pages
+     */
+    private function getPublishedMenu($websiteId, $menuType, $language = 'en') {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT 
+                    mi.id,
+                    mi.label,
+                    mi.type,
+                    mi.link,
+                    mi.page_id,
+                    mi.order_position,
+                    p.slug AS page_slug,
+                    p.title AS page_title
+                FROM menu_items mi
+                LEFT JOIN pages p ON p.id = mi.page_id
+                INNER JOIN menus m ON m.id = mi.menu_id
+                WHERE m.website_id = ? AND m.type = ? AND m.language = ?
+                AND mi.is_active = TRUE
+                AND (
+                    (mi.type != 'page') OR 
+                    (mi.type = 'page' AND p.status = 'published' AND p.is_deleted = FALSE)
+                )
+                ORDER BY mi.order_position, mi.id
+            ");
+
+            $stmt->execute([$websiteId, $menuType, $language]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?? [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get layout configuration for theme
+     * Returns layout structure for rendering (header, footer, sidebar, etc.)
+     * Now database-driven via ThemeModel
+     */
+    private function getPageLayout($websiteId, $template = 'default') {
+        return $this->themeModel->getPageLayout($websiteId, $template);
+    }
+
+    /**
+     * GET /api/public/pages-sitemap?website_id=123&language=en
+     * Get all published pages for sitemap generation
+     */
+    public function getPagesSitemap() {
+        try {
+            $websiteId = $_GET['website_id'] ?? null;
+            $language = $_GET['language'] ?? 'en';
+
+            if (!$websiteId) {
+                http_response_code(400);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'website_id is required'
+                ]);
+                return;
+            }
+
+            // 🔒 Only published pages
+            $stmt = $this->pdo->prepare("
+                SELECT id, slug, updated_at, published_at
+                FROM pages
+                WHERE website_id = ? AND language = ? 
+                AND status = 'published' AND is_deleted = FALSE
+                ORDER BY updated_at DESC
+            ");
+
+            $stmt->execute([$websiteId, $language]);
+            $pages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'status' => 'success',
+                'pages' => $pages,
+                'count' => count($pages)
+            ]);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Internal server error'
             ]);
         }
     }

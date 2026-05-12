@@ -164,16 +164,83 @@ class PagesController
             return;
         }
 
-        // Delete all menu items linked to this page
-        $this->menuModel->deleteMenuItemsByPageId($pageId);
+        try {
+            // ✅ SOFT DELETE: Mark page as deleted (not physically removed)
+            // This hides page from:
+            // - Admin panel
+            // - Public website
+            // - Menus (auto-filtered via status check)
+            // But preserves data for recovery
+            $success = $this->pageModel->softDeletePage($pageId, $payload['sub']);
 
-        $success = $this->pageModel->deletePage($pageId);
-        if (!$success) {
+            if (!$success) {
+                $this->respondServerError('Could not delete page');
+                return;
+            }
+
+            // Optional: Delete menu items linked to this page
+            // (Or leave them as orphaned, they won't appear in public menus anyway)
+            // $this->menuModel->deleteMenuItemsByPageId($pageId);
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Page soft deleted successfully',
+                'note' => 'Page data preserved. Use restore to recover.'
+            ]);
+        } catch (PDOException $e) {
+            error_log('Delete page error: ' . $e->getMessage());
             $this->respondServerError('Could not delete page');
+        }
+    }
+
+    /**
+     * Restore a soft-deleted page
+     * POST /api/pages/:id/restore
+     */
+    public function restore(string $pageId): void
+    {
+        $token = $this->getBearerToken();
+        if (!$token) {
+            $this->respondUnauthorized('Authorization token is required');
             return;
         }
 
-        echo json_encode(['status' => 'success']);
+        $payload = $this->authService->validateJwt($token);
+        if (!$payload || empty($payload['sub'])) {
+            $this->respondUnauthorized('Invalid or expired token');
+            return;
+        }
+
+        $existingPage = $this->pageModel->getPageById($pageId);
+        if (!$existingPage) {
+            $this->respondBadRequest('Page not found');
+            return;
+        }
+
+        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $existingPage['website_id']);
+        if ($role !== 'admin') {
+            $this->respondUnauthorized('Only admins can restore pages');
+            return;
+        }
+
+        try {
+            $success = $this->pageModel->restorePage($pageId);
+
+            if (!$success) {
+                $this->respondServerError('Could not restore page');
+                return;
+            }
+
+            $page = $this->pageModel->getPageById($pageId);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Page restored successfully',
+                'page' => $page
+            ]);
+        } catch (PDOException $e) {
+            error_log('Restore page error: ' . $e->getMessage());
+            $this->respondServerError('Could not restore page');
+        }
     }
 
     public function checkSlug(): void

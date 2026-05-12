@@ -25,6 +25,7 @@ function getPDO(): PDO
 
     if ($pdo === null) {
         $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET);
+        
 
         try {
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $GLOBALS['options']);
@@ -33,6 +34,8 @@ function getPDO(): PDO
             echo json_encode(['error' => 'Database connection failed', 'message' => $ex->getMessage()]);
             exit;
         }
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     }
 
     return $pdo;
