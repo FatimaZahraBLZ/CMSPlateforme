@@ -250,6 +250,50 @@ class MenuController
     }
 
     /**
+     * GET /api/public/menus - Get menus with items for public website (NO AUTH)
+     * Usage: /api/public/menus?website_id=123&type=header&language=en
+     */
+    public function getPublicMenus(): void
+    {
+        try {
+            $websiteId = $_GET['website_id'] ?? null;
+            $type = $_GET['type'] ?? null;
+            $language = $_GET['language'] ?? 'en';
+
+            if (!$websiteId) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'website_id is required']);
+                return;
+            }
+
+            // Get menus by type or all menus if type is not specified
+            $menus = [];
+            if ($type) {
+                $menu = $this->menuModel->getMenuByType($websiteId, $type, $language);
+                if ($menu) {
+                    $menus[] = $menu;
+                }
+            } else {
+                $menus = $this->menuModel->getMenusForWebsite($websiteId, $language);
+            }
+
+            // Attach menu items to each menu
+            foreach ($menus as &$menu) {
+                $menu['items'] = $this->menuModel->getMenuItems($menu['id']);
+            }
+
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'menus' => $menus]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * POST /api/menus/reorder - Reorder menu items
      */
     public function reorderMenuItems(): void
@@ -286,6 +330,54 @@ class MenuController
         }
 
         echo json_encode(['status' => 'success']);
+    }
+
+    /**
+     * PUT /api/menus/{menuId} - Update menu details (name, etc.)
+     */
+    public function updateMenu(string $menuId): void
+    {
+        $token = $this->getBearerToken();
+        if (!$token) {
+            $this->respondUnauthorized('Authorization token is required');
+            return;
+        }
+
+        $payload = $this->authService->validateJwt($token);
+        if (!$payload || empty($payload['sub'])) {
+            $this->respondUnauthorized('Invalid or expired token');
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $websiteId = $_GET['website_id'] ?? null;
+
+        if (!$websiteId) {
+            $this->respondBadRequest('website_id is required');
+            return;
+        }
+
+        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $websiteId);
+        if (!$role || !in_array($role, ['admin', 'editor'])) {
+            $this->respondUnauthorized('Access denied for this website');
+            return;
+        }
+
+        // Validate menu exists and belongs to website
+        $menu = $this->menuModel->getMenuById($menuId);
+        if (!$menu || $menu['website_id'] !== $websiteId) {
+            $this->respondUnauthorized('Menu not found or access denied');
+            return;
+        }
+
+        $success = $this->menuModel->updateMenu($menuId, $data);
+        if (!$success) {
+            $this->respondServerError('Could not update menu');
+            return;
+        }
+
+        $updatedMenu = $this->menuModel->getMenuById($menuId);
+        echo json_encode(['status' => 'success', 'menu' => $updatedMenu]);
     }
 
     private function getBearerToken(): ?string

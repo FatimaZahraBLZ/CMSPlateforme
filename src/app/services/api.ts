@@ -129,6 +129,29 @@ export class ApiService {
     }
   }
 
+  // Public - Get menus with items for public website
+  async getPublicMenus(websiteId: string, type?: string, language: string = 'en') {
+    try {
+      let url = `${this.baseUrl}/api/public/menus?website_id=${websiteId}&language=${language}`;
+      if (type) {
+        url += `&type=${type}`;
+      }
+
+      const res = await fetch(url);
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to fetch menus');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get public menus error:', error);
+      throw error;
+    }
+  }
+
   // Users
   async getUsers() {
     try {

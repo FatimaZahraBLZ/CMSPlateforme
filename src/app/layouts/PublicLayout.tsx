@@ -13,10 +13,39 @@ interface Website {
   default_language: string;
 }
 
+interface MenuItem {
+  id: string;
+  label: string;
+  type: 'page' | 'external' | 'custom';
+  link?: string;
+  page_slug?: string;
+  order_position: number;
+}
+
+interface Menu {
+  id: string;
+  type: string;
+  language: string;
+  name: string;
+  items: MenuItem[];
+  has_button?: boolean;
+  button_label?: string;
+  button_type?: 'page' | 'link' | 'phone';
+  button_page_id?: string;
+  button_slug?: string;
+  button_link?: string;
+  button_phone?: string;
+  button_color?: string;
+}
+
 export const PublicLayout: React.FC = () => {
   const [website, setWebsite] = useState<Website | null>(null);
+  const [headerMenu, setHeaderMenu] = useState<Menu | null>(null);
+  const [headerMenuItems, setHeaderMenuItems] = useState<MenuItem[]>([]);
+  const [footerMenus, setFooterMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string>('en');
 
   useEffect(() => {
     const loadWebsite = async () => {
@@ -33,6 +62,7 @@ export const PublicLayout: React.FC = () => {
 
         if (response.status === 'success' && response.website) {
           setWebsite(response.website);
+          setLanguage(response.website.default_language || 'en');
         } else {
           setError('Website not found');
         }
@@ -46,6 +76,76 @@ export const PublicLayout: React.FC = () => {
 
     loadWebsite();
   }, []);
+
+  // Fetch menus when website is loaded
+  useEffect(() => {
+    if (!website) return;
+
+    const fetchMenus = async () => {
+      try {
+        // Fetch header menu
+        const headerResponse = await api.getPublicMenus(website.id, 'header', language);
+        if (headerResponse.status === 'success' && headerResponse.menus?.[0]) {
+          const headerMenu = headerResponse.menus[0];
+          setHeaderMenu(headerMenu);
+          const items = headerMenu.items || [];
+          setHeaderMenuItems(items.sort((a: MenuItem, b: MenuItem) => a.order_position - b.order_position));
+          console.log('Header menu loaded:', headerMenu);
+        }
+
+        // Fetch footer menus
+        const footerResponse = await api.getPublicMenus(website.id, 'footer', language);
+        if (footerResponse.status === 'success') {
+          setFooterMenus(footerResponse.menus || []);
+          console.log('Footer menus loaded:', footerResponse.menus);
+        }
+      } catch (err) {
+        console.error('Failed to fetch menus:', err);
+        // Don't block page load if menus fail
+      }
+    };
+
+    fetchMenus();
+  }, [website, language]);
+
+  // Helper to resolve menu item link
+  const getMenuItemUrl = (item: MenuItem): string => {
+    if (item.type === 'page' && item.page_slug) {
+      return `/${item.page_slug}`;
+    }
+    if (item.type === 'external' || item.type === 'custom') {
+      return item.link || '#';
+    }
+    return '#';
+  };
+
+  // Helper to resolve button link
+  const getButtonUrl = (): string => {
+    if (!headerMenu || !headerMenu.has_button) return '#';
+
+    if (headerMenu.button_type === 'page' && headerMenu.button_slug) {
+      return `/${headerMenu.button_slug}`;
+    }
+    if (headerMenu.button_type === 'link' && headerMenu.button_link) {
+      return headerMenu.button_link;
+    }
+    if (headerMenu.button_type === 'phone' && headerMenu.button_phone) {
+      return `tel:${headerMenu.button_phone}`;
+    }
+    return '#';
+  };
+
+  // Helper to get button color classes
+  const getButtonColorClasses = (): string => {
+    const colorMap: Record<string, string> = {
+      'primary': 'bg-blue-600 hover:bg-blue-700',
+      'secondary': 'bg-gray-600 hover:bg-gray-700',
+      'success': 'bg-green-600 hover:bg-green-700',
+      'danger': 'bg-red-600 hover:bg-red-700',
+      'warning': 'bg-yellow-600 hover:bg-yellow-700',
+    };
+    return colorMap[headerMenu?.button_color || 'primary'] || 'bg-blue-600 hover:bg-blue-700';
+  };
 
   if (loading) {
     return (
@@ -85,30 +185,46 @@ export const PublicLayout: React.FC = () => {
               <span className="text-xl font-bold text-gray-900">{website.name}</span>
             </div>
 
+            {/* Dynamic Header Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Home
-              </Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
-                About
-              </Link>
-              <Link to="/services" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Services
-              </Link>
-              <Link to="/projects" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Projects
-              </Link>
-              <Link to="/blog" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Blog
-              </Link>
-              <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Contact
-              </Link>
+              {headerMenuItems.length > 0 ? (
+                headerMenuItems.map((item) => {
+                  const url = getMenuItemUrl(item);
+                  return (
+                    <Link
+                      key={item.id}
+                      to={url}
+                      className="text-gray-700 hover:text-blue-600 transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Fallback to default links if no menu items */}
+                  <Link to="/" className="text-gray-700 hover:text-blue-600 transition-colors">
+                    Home
+                  </Link>
+                  <Link to="/about" className="text-gray-700 hover:text-blue-600 transition-colors">
+                    About
+                  </Link>
+                  <Link to="/contact" className="text-gray-700 hover:text-blue-600 transition-colors">
+                    Contact
+                  </Link>
+                </>
+              )}
             </nav>
 
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              Get Started
-            </button>
+            {/* Dynamic Button from Menu Configuration */}
+            {headerMenu?.has_button && headerMenu.button_label ? (
+              <Link
+                to={getButtonUrl()}
+                className={`text-white px-6 py-2 rounded-lg transition-colors ${getButtonColorClasses()}`}
+              >
+                {headerMenu.button_label}
+              </Link>
+            ) : null}
           </div>
         </div>
       </header>
@@ -132,23 +248,47 @@ export const PublicLayout: React.FC = () => {
               </p>
             </div>
 
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/about" className="hover:text-white transition-colors">About</Link></li>
-                <li><Link to="/" className="hover:text-white transition-colors">Careers</Link></li>
-                <li><Link to="/" className="hover:text-white transition-colors">Team</Link></li>
-              </ul>
-            </div>
+            {/* Dynamic Footer Sections from Menu Items */}
+            {footerMenus.length > 0 ? (
+              footerMenus.map((menu) => (
+                <div key={menu.id}>
+                  <h3 className="font-semibold mb-4">{menu.name}</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
+                    {menu.items?.map((item) => {
+                      const url = getMenuItemUrl(item);
+                      return (
+                        <li key={item.id}>
+                          <Link to={url} className="hover:text-white transition-colors">
+                            {item.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <>
+                {/* Fallback footer sections */}
+                <div>
+                  <h3 className="font-semibold mb-4">Company</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
+                    <li><Link to="/about" className="hover:text-white transition-colors">About</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Careers</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Team</Link></li>
+                  </ul>
+                </div>
 
-            <div>
-              <h3 className="font-semibold mb-4">Resources</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
-                <li><Link to="/" className="hover:text-white transition-colors">Documentation</Link></li>
-                <li><Link to="/" className="hover:text-white transition-colors">Support</Link></li>
-              </ul>
-            </div>
+                <div>
+                  <h3 className="font-semibold mb-4">Resources</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
+                    <li><Link to="/" className="hover:text-white transition-colors">Blog</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Documentation</Link></li>
+                    <li><Link to="/" className="hover:text-white transition-colors">Support</Link></li>
+                  </ul>
+                </div>
+              </>
+            )}
 
             <div>
               <h3 className="font-semibold mb-4">Connect</h3>

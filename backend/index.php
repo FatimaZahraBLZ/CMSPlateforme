@@ -121,6 +121,16 @@ if ($path === '/api/menus' && $method === 'GET') {
     exit;
 }
 
+if (preg_match('#^/api/menus/([^/]+)$#', $path, $matches)) {
+    $menuId = $matches[1];
+    $controller = new MenuController($pdo);
+
+    if ($method === 'PUT') {
+        $controller->updateMenu($menuId);
+        exit;
+    }
+}
+
 if ($path === '/api/menu-items' && $method === 'GET') {
     $controller = new MenuController($pdo);
     $controller->getMenuItems();
@@ -267,6 +277,13 @@ if ($path === '/api/public/pages' && $method === 'GET') {
 if ($path === '/api/public/page' && $method === 'GET') {
     $controller = new PublicController($pdo);
     $controller->getPage();
+    exit;
+}
+
+// PUBLIC API - Get menus with items (for public website navigation)
+if ($path === '/api/public/menus' && $method === 'GET') {
+    $controller = new MenuController($pdo);
+    $controller->getPublicMenus();
     exit;
 }
 

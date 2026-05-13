@@ -15,7 +15,7 @@ class MenuModel
      */
     public function getMenusForWebsite(string $websiteId, ?string $language = null): array
     {
-        $sql = 'SELECT id, website_id, type, language, name FROM menus WHERE website_id = ?';
+        $sql = 'SELECT id, website_id, type, language, name, has_button, button_label, button_type, button_page_id, button_link, button_phone, button_color FROM menus WHERE website_id = ?';
         $params = [$websiteId];
 
         if ($language) {
@@ -34,7 +34,7 @@ class MenuModel
      */
     public function getMenuById(string $menuId): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT id, website_id, type, language, name FROM menus WHERE id = ? LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT id, website_id, type, language, name, has_button, button_label, button_type, button_page_id, button_link, button_phone, button_color FROM menus WHERE id = ? LIMIT 1');
         $stmt->execute([$menuId]);
 
         $menu = $stmt->fetch();
@@ -75,7 +75,7 @@ class MenuModel
      */
     public function getMenuByType(string $websiteId, string $type, ?string $language = null): ?array
     {
-        $sql = 'SELECT id, website_id, type, language, name FROM menus WHERE website_id = ? AND type = ?';
+        $sql = 'SELECT id, website_id, type, language, name, has_button, button_label, button_type, button_page_id, button_link, button_phone, button_color FROM menus WHERE website_id = ? AND type = ?';
         $params = [$websiteId, $type];
 
         if ($language) {
@@ -198,6 +198,67 @@ class MenuModel
     {
         $stmt = $this->pdo->prepare('DELETE FROM menu_items WHERE id = ?');
         return $stmt->execute([$menuItemId]);
+    }
+
+    /**
+     * Update a menu (name, button configuration, etc.)
+     */
+    public function updateMenu(string $menuId, array $data): bool
+    {
+        $updateFields = [];
+        $params = [];
+
+        if (isset($data['name'])) {
+            $updateFields[] = 'name = ?';
+            $params[] = $data['name'];
+        }
+
+        if (isset($data['has_button'])) {
+            $updateFields[] = 'has_button = ?';
+            $params[] = $data['has_button'] ? 1 : 0;
+        }
+
+        if (isset($data['button_label'])) {
+            $updateFields[] = 'button_label = ?';
+            $params[] = $data['button_label'];
+        }
+
+        if (isset($data['button_type'])) {
+            $updateFields[] = 'button_type = ?';
+            $params[] = $data['button_type'];
+        }
+
+        if (isset($data['button_page_id'])) {
+            $updateFields[] = 'button_page_id = ?';
+            $params[] = $data['button_page_id'] ?: null;
+        }
+
+        if (isset($data['button_link'])) {
+            $updateFields[] = 'button_link = ?';
+            $params[] = $data['button_link'];
+        }
+
+        if (isset($data['button_phone'])) {
+            $updateFields[] = 'button_phone = ?';
+            $params[] = $data['button_phone'];
+        }
+
+        if (isset($data['button_color'])) {
+            $updateFields[] = 'button_color = ?';
+            $params[] = $data['button_color'];
+        }
+
+        if (empty($updateFields)) {
+            return true; // No updates to apply
+        }
+
+        $params[] = $menuId;
+
+        $stmt = $this->pdo->prepare(
+            'UPDATE menus SET ' . implode(', ', $updateFields) . ' WHERE id = ?'
+        );
+
+        return $stmt->execute($params);
     }
 
     /**

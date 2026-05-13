@@ -120,43 +120,47 @@ class WebsiteModel
         }
     }
 
-    public function createDefaultMenu(string $websiteId, string $menuName, array $menuItems, string $language): void
+    public function createDefaultMenu(string $websiteId, string $menuName, array $menuItems, string $language, string $type = 'header'): void
     {
         try {
-            error_log("Creating default menu for website: $websiteId, language: $language");
+            error_log("Creating default menu for website: $websiteId, language: $language, type: $type");
             
-            // Create menu with 'type' = 'header' as default
+            // Create menu with the specified type
             $stmt = $this->pdo->prepare(
                 'INSERT INTO menus (id, website_id, type, language, name)
                  VALUES (?, ?, ?, ?, ?)'
             );
             $menuId = $this->generateUuid();
-            $stmt->execute([$menuId, $websiteId, 'header', $language, $menuName]);
-            error_log("Menu created with ID: $menuId");
+            $stmt->execute([$menuId, $websiteId, $type, $language, $menuName]);
+            error_log("Menu created with ID: $menuId, type: $type");
 
-            // Create menu items
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO menu_items (id, menu_id, label, type, link, order_position)
-                 VALUES (?, ?, ?, ?, ?, ?)'
-            );
+            // Create menu items only if there are any
+            if (!empty($menuItems)) {
+                $stmt = $this->pdo->prepare(
+                    'INSERT INTO menu_items (id, menu_id, label, type, link, order_position)
+                     VALUES (?, ?, ?, ?, ?, ?)'
+                );
 
-            foreach ($menuItems as $index => $item) {
-                try {
-                    $itemId = $this->generateUuid();
-                    // Use 'custom' type since we're not linking to pages
-                    $stmt->execute([
-                        $itemId, 
-                        $menuId, 
-                        $item['title'],
-                        'custom',
-                        $item['url'],
-                        $item['order']
-                    ]);
-                    error_log("Menu item created: " . $item['title']);
-                } catch (Exception $e) {
-                    error_log("Error creating menu item: " . $e->getMessage());
-                    // Don't fail the menu creation
+                foreach ($menuItems as $index => $item) {
+                    try {
+                        $itemId = $this->generateUuid();
+                        // Use 'custom' type since we're not linking to pages
+                        $stmt->execute([
+                            $itemId, 
+                            $menuId, 
+                            $item['title'],
+                            'custom',
+                            $item['url'],
+                            $item['order']
+                        ]);
+                        error_log("Menu item created: " . $item['title']);
+                    } catch (Exception $e) {
+                        error_log("Error creating menu item: " . $e->getMessage());
+                        // Don't fail the menu creation
+                    }
                 }
+            } else {
+                error_log("No menu items to create for menu: $menuId (type: $type)");
             }
             error_log("Default menu created successfully");
         } catch (Exception $e) {

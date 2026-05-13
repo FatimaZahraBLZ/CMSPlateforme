@@ -207,13 +207,17 @@ class WebsitesController
 
     private function createDefaultMenu(string $websiteId, string $defaultLanguage): void
     {
-        $menuItems = [
+        // Create Header Menu with default items (Home, About, Contact)
+        $headerMenuItems = [
             ['title' => 'Home', 'url' => '/', 'order' => 1],
             ['title' => 'About', 'url' => '/about', 'order' => 2],
             ['title' => 'Contact', 'url' => '/contact', 'order' => 3]
         ];
 
-        $this->websiteModel->createDefaultMenu($websiteId, 'Main Menu', $menuItems, $defaultLanguage);
+        $this->websiteModel->createDefaultMenu($websiteId, 'Header Menu', $headerMenuItems, $defaultLanguage, 'header');
+
+        // Create Footer Menu (empty)
+        $this->websiteModel->createDefaultMenu($websiteId, 'Footer Menu', [], $defaultLanguage, 'footer');
     }
 
     private function createDefaultSettings(string $websiteId): void

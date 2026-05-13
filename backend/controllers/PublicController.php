@@ -279,11 +279,11 @@ class PublicController {
             // Get layout configuration (theme-based)
             $layout = $this->getPageLayout($websiteId, $page['template'] ?? 'default');
 
-            // Get header menu (published items only)
-            $headerMenu = $this->getPublishedMenu($websiteId, 'header', $language);
+            // Get header menu with button info
+            $headerMenu = $this->getPublishedMenuWithButton($websiteId, 'header', $language);
 
-            // Get footer menu (published items only)
-            $footerMenu = $this->getPublishedMenu($websiteId, 'footer', $language);
+            // Get footer menu with button info
+            $footerMenu = $this->getPublishedMenuWithButton($websiteId, 'footer', $language);
 
             echo json_encode([
                 'status' => 'success',
@@ -341,6 +341,76 @@ class PublicController {
             return $stmt->fetchAll(PDO::FETCH_ASSOC) ?? [];
         } catch (Exception $e) {
             return [];
+        }
+    }
+
+    private function getPublishedMenuWithButton($websiteId, $menuType, $language = 'en') {
+        try {
+            // Get menu with button info
+            $stmt = $this->pdo->prepare("
+                SELECT 
+                    id,
+                    name,
+                    type,
+                    has_button,
+                    button_label,
+                    button_type,
+                    button_page_id,
+                    button_link,
+                    button_phone,
+                    button_color
+                FROM menus
+                WHERE website_id = ? AND type = ? AND language = ?
+            ");
+            $stmt->execute([$websiteId, $menuType, $language]);
+            $menu = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$menu) {
+                return null;
+            }
+
+            // Get menu items
+            $itemsStmt = $this->pdo->prepare("
+                SELECT 
+                    mi.id,
+                    mi.label,
+                    mi.type,
+                    mi.link,
+                    mi.page_id,
+                    mi.order_position,
+                    p.slug AS page_slug,
+                    p.title AS page_title
+                FROM menu_items mi
+                LEFT JOIN pages p ON p.id = mi.page_id
+                WHERE mi.menu_id = ?
+                AND mi.is_active = TRUE
+                AND (
+                    (mi.type != 'page') OR 
+                    (mi.type = 'page' AND p.status = 'published' AND p.is_deleted = FALSE)
+                )
+                ORDER BY mi.order_position, mi.id
+            ");
+            $itemsStmt->execute([$menu['id']]);
+            $menu['items'] = $itemsStmt->fetchAll(PDO::FETCH_ASSOC) ?? [];
+
+            // Process button data if button is enabled
+            if ($menu['has_button']) {
+                // If button links to a page, get page slug
+                if ($menu['button_type'] === 'page' && $menu['button_page_id']) {
+                    $pageStmt = $this->pdo->prepare("SELECT slug, title FROM pages WHERE id = ? AND status = 'published'");
+                    $pageStmt->execute([$menu['button_page_id']]);
+                    $page = $pageStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($page) {
+                        $menu['button_slug'] = $page['slug'];
+                        $menu['button_page_title'] = $page['title'];
+                    }
+                }
+            }
+
+            return $menu;
+        } catch (Exception $e) {
+            error_log('Error getting published menu with button: ' . $e->getMessage());
+            return null;
         }
     }
 
