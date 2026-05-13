@@ -20,6 +20,7 @@ interface MenuItem {
   link?: string;
   page_slug?: string;
   order_position: number;
+  section_name?: string; // For footer grouping: "Company", "Services", "Legal", etc.
 }
 
 interface Menu {
@@ -107,6 +108,21 @@ export const PublicLayout: React.FC = () => {
 
     fetchMenus();
   }, [website, language]);
+
+  // Helper to group footer menu items by section_name
+  const groupFooterItems = (items: MenuItem[]) => {
+    const grouped: { [key: string]: MenuItem[] } = {};
+    
+    items.forEach((item) => {
+      const section = item.section_name || 'Other';
+      if (!grouped[section]) {
+        grouped[section] = [];
+      }
+      grouped[section].push(item);
+    });
+    
+    return grouped;
+  };
 
   // Helper to resolve menu item link
   const getMenuItemUrl = (item: MenuItem): string => {
@@ -250,23 +266,26 @@ export const PublicLayout: React.FC = () => {
 
             {/* Dynamic Footer Sections from Menu Items */}
             {footerMenus.length > 0 ? (
-              footerMenus.map((menu) => (
-                <div key={menu.id}>
-                  <h3 className="font-semibold mb-4">{menu.name}</h3>
-                  <ul className="space-y-2 text-sm text-gray-400">
-                    {menu.items?.map((item) => {
-                      const url = getMenuItemUrl(item);
-                      return (
-                        <li key={item.id}>
-                          <Link to={url} className="hover:text-white transition-colors">
-                            {item.label}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))
+              footerMenus.map((menu) => {
+                const groupedItems = groupFooterItems(menu.items || []);
+                return Object.entries(groupedItems).map(([section, items]) => (
+                  <div key={`${menu.id}-${section}`}>
+                    <h3 className="font-semibold mb-4">{section}</h3>
+                    <ul className="space-y-2 text-sm text-gray-400">
+                      {items.map((item) => {
+                        const url = getMenuItemUrl(item);
+                        return (
+                          <li key={item.id}>
+                            <Link to={url} className="hover:text-white transition-colors">
+                              {item.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ));
+              })
             ) : (
               <>
                 {/* Fallback footer sections */}

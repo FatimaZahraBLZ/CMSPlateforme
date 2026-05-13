@@ -31,6 +31,7 @@ interface MenuItem {
   link?: string;
   page_slug?: string;
   order_position: number;
+  section_name?: string | null;
 }
 
 interface Navigation {
@@ -272,25 +273,44 @@ const HeaderNav: React.FC<{ menu: MenuItem[] }> = ({ menu }) => {
  * Footer Navigation Component
  */
 const FooterNav: React.FC<{ menu: MenuItem[] }> = ({ menu }) => {
+  // Group footer items by section_name
+  const groupFooterItems = () => {
+    const grouped: { [key: string]: MenuItem[] } = {};
+    
+    menu.forEach((item) => {
+      const section = item.section_name || 'Other';
+      if (!grouped[section]) {
+        grouped[section] = [];
+      }
+      grouped[section].push(item);
+    });
+    
+    return grouped;
+  };
+
+  const groupedItems = groupFooterItems();
+
   return (
     <footer className="bg-gray-900 text-white mt-16">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-4 gap-8 mb-8">
-          <nav>
-            <h3 className="font-bold mb-4">Navigation</h3>
-            <ul className="space-y-2">
-              {menu.slice(0, 4).map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={item.type === 'page' ? `/${item.page_slug}` : item.link || '#'}
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+          {Object.entries(groupedItems).map(([section, items]) => (
+            <nav key={section}>
+              <h3 className="font-bold mb-4">{section}</h3>
+              <ul className="space-y-2">
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <a
+                      href={item.type === 'page' ? `/${item.page_slug}` : item.link || '#'}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
         <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
           <p>&copy; {new Date().getFullYear()} All rights reserved.</p>

@@ -161,7 +161,8 @@ class MenuController
             $data['order_position'] ?? null,
             $data['page_id'] ?? null,
             $data['link'] ?? null,
-            $data['is_active'] ?? true
+            $data['is_active'] ?? true,
+            $data['section_name'] ?? null
         );
 
         if (!$menuItemId) {

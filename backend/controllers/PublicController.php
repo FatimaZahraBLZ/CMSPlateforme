@@ -319,6 +319,7 @@ class PublicController {
                 SELECT 
                     mi.id,
                     mi.label,
+                    mi.section_name,
                     mi.type,
                     mi.link,
                     mi.page_id,
@@ -374,6 +375,7 @@ class PublicController {
                 SELECT 
                     mi.id,
                     mi.label,
+                    mi.section_name,
                     mi.type,
                     mi.link,
                     mi.page_id,

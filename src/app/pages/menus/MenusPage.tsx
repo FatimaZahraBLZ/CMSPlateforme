@@ -7,11 +7,13 @@ import { Badge } from '../../components/ui/Badge';
 import { useCMS } from '../../contexts/CMSContext';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { Business, Construction, Gavel, Description } from '@mui/icons-material';
 
 interface MenuItem {
   id: string;
   menu_id: string;
   label: string;
+  section_name?: string | null;
   type: 'page' | 'article' | 'external' | 'custom';
   link: string | null;
   page_id: string | null;
@@ -58,6 +60,7 @@ export const MenusPage: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     label: '',
+    section_name: '',
     type: 'page' as 'page' | 'article' | 'external' | 'custom',
     page_id: '',
     link: '',
@@ -176,6 +179,50 @@ export const MenusPage: React.FC = () => {
     }
   };
 
+  const resetFormData = () => {
+    setFormData({
+      label: '',
+      section_name: '',
+      type: 'page',
+      page_id: '',
+      link: '',
+      is_active: true,
+    });
+  };
+
+  // Group footer menu items by section_name
+  const groupFooterItems = () => {
+    const grouped: { [key: string]: MenuItem[] } = {};
+    
+    menuItems.forEach((item) => {
+      const section = item.section_name || 'Other';
+      if (!grouped[section]) {
+        grouped[section] = [];
+      }
+      grouped[section].push(item);
+    });
+    
+    return grouped;
+  };
+
+  // Get pastel color and icon for section
+  const getSectionStyle = (section: string) => {
+    const section_lower = section.toLowerCase();
+    if (section_lower === 'other') {
+      return { bg: 'bg-yellow-50', icon: 'description', color: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-700' };
+    }
+    if (section_lower === 'company') {
+      return { bg: 'bg-blue-50', icon: 'business', color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700' };
+    }
+    if (section_lower === 'services') {
+      return { bg: 'bg-green-50', icon: 'construction', color: 'text-green-600', badge: 'bg-green-100 text-green-700' };
+    }
+    if (section_lower === 'legal') {
+      return { bg: 'bg-purple-50', icon: 'gavel', color: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' };
+    }
+    return { bg: 'bg-gray-50', icon: 'description', color: 'text-gray-600', badge: 'bg-gray-100 text-gray-700' };
+  };
+
   const getCurrentMenu = (): Menu | undefined => {
     const language = currentLanguage || selectedWebsite?.defaultLanguage || 'en';
     console.log('getCurrentMenu - looking for type:', menuType, 'language:', language);
@@ -240,7 +287,7 @@ export const MenusPage: React.FC = () => {
       return;
     }
 
-    if (formData.type === 'external' && !formData.link) {
+    if ((formData.type === 'external' || formData.type === 'custom') && !formData.link) {
       setError('Please enter a link');
       return;
     }
@@ -260,7 +307,8 @@ export const MenusPage: React.FC = () => {
           label: formData.label,
           type: formData.type,
           page_id: formData.type === 'page' ? formData.page_id : null,
-          link: formData.type === 'external' ? formData.link : null,
+          link: formData.type === 'external' || formData.type === 'custom' ? formData.link : null,
+          section_name: formData.section_name || null,
           is_active: formData.is_active,
         }),
       });
@@ -274,13 +322,7 @@ export const MenusPage: React.FC = () => {
       await fetchMenuItems(menu.id);
       
       // Reset form
-      setFormData({
-        label: '',
-        type: 'page',
-        page_id: '',
-        link: '',
-        is_active: true,
-      });
+      resetFormData();
       setEditingId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add menu item');
@@ -509,47 +551,50 @@ export const MenusPage: React.FC = () => {
     return (
       <div
         ref={ref}
-        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-move group"
+        className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-move group"
         style={{ opacity: 1 }}
       >
-        <div className="flex items-center gap-4 flex-1">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          {/* Drag Handle */}
+          <div className="flex-shrink-0 flex items-center opacity-50 group-hover:opacity-100 transition-opacity">
+            <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
             </svg>
           </div>
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center text-sm font-medium text-gray-600">
-            {item.order_position}
+
+          {/* Order Badge */}
+          <div className="w-5 h-5 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-bold text-blue-700">{item.order_position}</span>
           </div>
-          <div>
-            <p className="font-medium text-gray-900">{item.label}</p>
-            <p className="text-sm text-gray-600">
+
+          {/* Item Info */}
+          <div className="min-w-10 flex-1">
+            <p className="font-semibold text-gray-900 truncate">{item.label}</p>
+            <p className="text-sm text-gray-500 truncate">
               {item.type === 'page' && item.page_slug
                 ? `/${item.page_slug}`
                 : item.link || 'No link'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={item.type === 'page' ? 'info' : 'default'}>
-            {item.type}
-          </Badge>
-          <div className="flex gap-1">
-            <button
-              onClick={() => handleDeleteMenuItem(item.id)}
-              disabled={loading}
-              className="p-1 hover:bg-red-100 rounded disabled:opacity-50"
-            >
-              <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            </button>
-          </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+          <button
+            onClick={() => handleDeleteMenuItem(item.id)}
+            disabled={loading}
+            className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 group/delete"
+            title="Delete menu item"
+          >
+            <svg className="w-5 h-5 text-red-400 group-hover/delete:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     );
@@ -613,16 +658,16 @@ export const MenusPage: React.FC = () => {
           <p className="text-gray-600 mt-4">Loading menu items...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <DndProvider backend={HTML5Backend}>
-            <Card>
+            <Card className="flex flex-col h-full">
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     {editingMenuName ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 max-w-md">
                         <Input
-                          value={menuNameInput}
+                          value={menuNameInput || ''}
                           onChange={(e) => setMenuNameInput(e.target.value)}
                           className="flex-1"
                           disabled={loading}
@@ -631,7 +676,7 @@ export const MenusPage: React.FC = () => {
                         <button
                           onClick={handleUpdateMenuName}
                           disabled={loading}
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                         >
                           Save
                         </button>
@@ -641,53 +686,133 @@ export const MenusPage: React.FC = () => {
                             setMenuNameInput(currentMenu?.name || '');
                           }}
                           disabled={loading}
-                          className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50"
+                          className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
                         >
                           Cancel
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
-                        <CardTitle>{currentMenu?.name || `${menuType.charAt(0).toUpperCase() + menuType.slice(1)} Menu`} Items</CardTitle>
-                        <button
-                          onClick={() => setEditingMenuName(true)}
-                          className="ml-2 p-1 hover:bg-gray-100 rounded"
-                          title="Edit menu name"
-                        >
-                          <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-3xl font-bold text-gray-900">
+                            {currentMenu?.name || `${menuType.charAt(0).toUpperCase() + menuType.slice(1)}`} Items
+                          </h2>
+                          <button
+                            onClick={() => setEditingMenuName(true)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Edit menu name"
+                          >
+                            <svg className="w-5 h-5 text-gray-500 hover:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2">Drag items to reorder them</p>
                       </div>
                     )}
                   </div>
+                  
+
                 </div>
-                <p className="text-sm text-gray-500 mt-2">Drag items to reorder them</p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {menuItems.length === 0 ? (
-                  <p className="text-gray-600 text-center py-8">No menu items yet. Add your first item below.</p>
+                  <div className="text-center py-12">
+                    <p className="text-gray-600">No menu items yet. Add your first item below.</p>
+                  </div>
+                ) : menuType === 'footer' ? (
+                  // Display grouped footer items in modern cards
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(groupFooterItems()).map(([section, items]) => {
+                      const style = getSectionStyle(section);
+                      return (
+                        <div key={section} className={`${style.bg} rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow`}>
+                          {/* Section Header */}
+                          <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-full ${style.bg} border ${style.badge.split(' ')[1]} flex items-center justify-center`}>
+                                {style.icon === 'business' && <Business className={`${style.color} text-sm`} />}
+                                {style.icon === 'construction' && <Construction className={`${style.color} text-sm`} />}
+                                {style.icon === 'gavel' && <Gavel className={`${style.color} text-sm`} />}
+                                {style.icon === 'description' && <Description className={`${style.color} text-sm`} />}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-gray-900 uppercase tracking-wide text-xs">{section}</h3>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${style.badge}`}>
+                              {items.length}
+                            </span>
+                          </div>
+
+                          {/* Menu Items */}
+                          <div className="px-4 py-2 space-y-1">
+                            {items.map((item, index) => (
+                              <DraggableMenuItem key={item.id} item={item} index={menuItems.indexOf(item)} />
+                            ))}
+                          </div>
+
+                          {/* Add Item Button */}
+                          <div className="px-4 py-2 border-t border-dashed border-gray-300">
+                            <button
+                              onClick={() => {
+                                resetFormData();
+                                setFormData((prev) => ({ ...prev, section_name: section }));
+                              }}
+                              className="w-full px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-white transition-all flex items-center justify-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Add item to {section}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {menuItems.map((item, index) => (
-                      <DraggableMenuItem key={item.id} item={item} index={index} />
-                    ))}
+                  // Display header/sidebar items in single column with modern styling
+                  <div className="space-y-6">
+                    <div className="rounded-xl bg-blue-50 border border-gray-200 shadow-sm overflow-hidden">
+                      {/* Header Section */}
+                      <div className="px-6 py-4 border-b border-gray-200">
+                        <h3 className="font-bold text-gray-900 uppercase tracking-wide text-sm">{menuType} Items</h3>
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="px-6 py-4 space-y-2">
+                        {menuItems.map((item, index) => (
+                          <DraggableMenuItem key={item.id} item={item} index={index} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Helper Tip */}
+                <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                  </svg>
+                  <p className="text-sm text-blue-900">
+                    <strong>Tip:</strong> Drag the dots to reorder items within each section. For footer menus, set a section name to organize items into columns.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </DndProvider>
 
-          <Card>
+          <Card className="flex flex-col h-full">
             <CardHeader>
               <CardTitle>Add Menu Item</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddMenuItem} className="space-y-4">
+            <CardContent className="flex-1">
+              <form onSubmit={handleAddMenuItem} className="space-y-4 h-full flex flex-col">
                 <Input
                   label="Label"
                   placeholder="Menu item label"
-                  value={formData.label}
+                  value={formData.label || ''}
                   onChange={(e) =>
                     setFormData({ ...formData, label: e.target.value })
                   }
@@ -695,13 +820,17 @@ export const MenusPage: React.FC = () => {
                 />
                 <Select
                   label="Type"
-                  value={formData.type}
-                  onChange={(e) =>
+                  value={formData.type || 'page'}
+                  onChange={(e) => {
+                    const newType = e.target.value as typeof formData.type;
                     setFormData({
                       ...formData,
-                      type: e.target.value as typeof formData.type,
-                    })
-                  }
+                      type: newType,
+                      // Clear fields that won't be used based on type
+                      page_id: newType === 'page' ? formData.page_id : '',
+                      link: (newType === 'external' || newType === 'custom') ? formData.link : '',
+                    });
+                  }}
                   options={[
                     { value: 'page', label: 'Page' },
                     { value: 'external', label: 'External Link' },
@@ -712,7 +841,7 @@ export const MenusPage: React.FC = () => {
                 {formData.type === 'page' && (
                   <Select
                     label="Select Page"
-                    value={formData.page_id}
+                    value={formData.page_id || ''}
                     onChange={(e) =>
                       setFormData({ ...formData, page_id: e.target.value })
                     }
@@ -730,16 +859,27 @@ export const MenusPage: React.FC = () => {
                   <Input
                     label="Link"
                     placeholder="/page-url or https://..."
-                    value={formData.link}
+                    value={formData.link || ''}
                     onChange={(e) =>
                       setFormData({ ...formData, link: e.target.value })
                     }
                     disabled={loading}
                   />
                 )}
+                {menuType === 'footer' && (
+                  <Input
+                    label="Section Name (Optional)"
+                    placeholder="e.g., Company, Services, Legal"
+                    value={formData.section_name || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, section_name: e.target.value })
+                    }
+                    disabled={loading}
+                  />
+                )}
                 <Button
                   variant="primary"
-                  className="w-full"
+                  className="w-full mt-auto"
                   disabled={loading}
                   type="submit"
                 >
@@ -749,172 +889,216 @@ export const MenusPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Menu Button</CardTitle>
-              <p className="text-sm text-gray-500 mt-2">Add an optional button to this menu</p>
-            </CardHeader>
-            <CardContent>
-              {editingButton ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={buttonData.has_button}
-                        onChange={(e) =>
-                          setButtonData({ ...buttonData, has_button: e.target.checked })
-                        }
-                        disabled={loading}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium">Enable Button</span>
-                    </label>
-                  </div>
-
-                  {buttonData.has_button && (
-                    <>
-                      <Input
-                        label="Button Label"
-                        placeholder="e.g., Get Started, Book Now, Contact Us"
-                        value={buttonData.button_label}
-                        onChange={(e) =>
-                          setButtonData({ ...buttonData, button_label: e.target.value })
-                        }
-                        disabled={loading}
-                      />
-
-                      <Select
-                        label="Link Type"
-                        value={buttonData.button_type}
-                        onChange={(e) =>
-                          setButtonData({
-                            ...buttonData,
-                            button_type: e.target.value as 'page' | 'link' | 'phone',
-                          })
-                        }
-                        options={[
-                          { value: 'page', label: 'Link to Page' },
-                          { value: 'link', label: 'External Link' },
-                          { value: 'phone', label: 'Phone Number' },
-                        ]}
-                        disabled={loading}
-                      />
-
-                      {buttonData.button_type === 'page' && (
-                        <Select
-                          label="Select Page"
-                          value={buttonData.button_page_id}
+          {menuType === 'header' ? (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>Menu Button</CardTitle>
+                <p className="text-sm text-gray-500 mt-2">Add an optional button to this menu</p>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto">
+                {editingButton ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={buttonData.has_button}
                           onChange={(e) =>
-                            setButtonData({ ...buttonData, button_page_id: e.target.value })
+                            setButtonData({ ...buttonData, has_button: e.target.checked })
+                          }
+                          disabled={loading}
+                          className="rounded"
+                        />
+                        <span className="text-sm font-medium">Enable Button</span>
+                      </label>
+                    </div>
+
+                    {buttonData.has_button && (
+                      <>
+                        <Input
+                          label="Button Label"
+                          placeholder="e.g., Get Started, Book Now, Contact Us"
+                          value={buttonData.button_label || ''}
+                          onChange={(e) =>
+                            setButtonData({ ...buttonData, button_label: e.target.value })
+                          }
+                          disabled={loading}
+                        />
+
+                        <Select
+                          label="Link Type"
+                          value={buttonData.button_type || 'link'}
+                          onChange={(e) =>
+                            setButtonData({
+                              ...buttonData,
+                              button_type: e.target.value as 'page' | 'link' | 'phone',
+                            })
                           }
                           options={[
-                            { value: '', label: 'Choose a page...' },
-                            ...pages.map((page) => ({
-                              value: page.id,
-                              label: page.title,
-                            })),
+                            { value: 'page', label: 'Link to Page' },
+                            { value: 'link', label: 'External Link' },
+                            { value: 'phone', label: 'Phone Number' },
                           ]}
                           disabled={loading}
                         />
-                      )}
 
-                      {buttonData.button_type === 'link' && (
-                        <Input
-                          label="Link URL"
-                          placeholder="https://example.com or /path"
-                          value={buttonData.button_link}
+                        {buttonData.button_type === 'page' && (
+                          <Select
+                            label="Select Page"
+                            value={buttonData.button_page_id || ''}
+                            onChange={(e) =>
+                              setButtonData({ ...buttonData, button_page_id: e.target.value })
+                            }
+                            options={[
+                              { value: '', label: 'Choose a page...' },
+                              ...pages.map((page) => ({
+                                value: page.id,
+                                label: page.title,
+                              })),
+                            ]}
+                            disabled={loading}
+                          />
+                        )}
+
+                        {buttonData.button_type === 'link' && (
+                          <Input
+                            label="Link URL"
+                            placeholder="https://example.com or /path"
+                            value={buttonData.button_link || ''}
+                            onChange={(e) =>
+                              setButtonData({ ...buttonData, button_link: e.target.value })
+                            }
+                            disabled={loading}
+                          />
+                        )}
+
+                        {buttonData.button_type === 'phone' && (
+                          <Input
+                            label="Phone Number"
+                            placeholder="+1 (555) 123-4567"
+                            value={buttonData.button_phone || ''}
+                            onChange={(e) =>
+                              setButtonData({ ...buttonData, button_phone: e.target.value })
+                            }
+                            disabled={loading}
+                          />
+                        )}
+
+                        <Select
+                          label="Button Style"
+                          value={buttonData.button_color || 'primary'}
                           onChange={(e) =>
-                            setButtonData({ ...buttonData, button_link: e.target.value })
+                            setButtonData({ ...buttonData, button_color: e.target.value })
                           }
+                          options={[
+                            { value: 'primary', label: 'Primary (Blue)' },
+                            { value: 'secondary', label: 'Secondary (Gray)' },
+                            { value: 'success', label: 'Success (Green)' },
+                            { value: 'danger', label: 'Danger (Red)' },
+                            { value: 'warning', label: 'Warning (Orange)' },
+                          ]}
                           disabled={loading}
                         />
-                      )}
+                      </>
+                    )}
 
-                      {buttonData.button_type === 'phone' && (
-                        <Input
-                          label="Phone Number"
-                          placeholder="+1 (555) 123-4567"
-                          value={buttonData.button_phone}
-                          onChange={(e) =>
-                            setButtonData({ ...buttonData, button_phone: e.target.value })
-                          }
-                          disabled={loading}
-                        />
-                      )}
-
-                      <Select
-                        label="Button Style"
-                        value={buttonData.button_color}
-                        onChange={(e) =>
-                          setButtonData({ ...buttonData, button_color: e.target.value })
-                        }
-                        options={[
-                          { value: 'primary', label: 'Primary (Blue)' },
-                          { value: 'secondary', label: 'Secondary (Gray)' },
-                          { value: 'success', label: 'Success (Green)' },
-                          { value: 'danger', label: 'Danger (Red)' },
-                          { value: 'warning', label: 'Warning (Orange)' },
-                        ]}
+                    <div className="flex gap-2 pt-4">
+                      <button
+                        onClick={handleUpdateButton}
                         disabled={loading}
-                      />
-                    </>
-                  )}
-
-                  <div className="flex gap-2 pt-4">
-                    <button
-                      onClick={handleUpdateButton}
-                      disabled={loading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-1"
-                    >
-                      {loading ? 'Saving...' : 'Save Button'}
-                    </button>
-                    <button
-                      onClick={() => setEditingButton(false)}
-                      disabled={loading}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50 flex-1"
-                    >
-                      Cancel
-                    </button>
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex-1"
+                      >
+                        {loading ? 'Saving...' : 'Save Button'}
+                      </button>
+                      <button
+                        onClick={() => setEditingButton(false)}
+                        disabled={loading}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50 flex-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {buttonData.has_button ? (
+                      <>
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="font-medium text-blue-900">{buttonData.button_label}</p>
+                          <p className="text-sm text-blue-700 mt-1">
+                            {buttonData.button_type === 'page'
+                              ? `Linked to page: ${pages.find(p => p.id === buttonData.button_page_id)?.title || 'Unknown'}`
+                              : buttonData.button_type === 'link'
+                              ? `URL: ${buttonData.button_link}`
+                              : `Phone: ${buttonData.button_phone}`}
+                          </p>
+                          <p className="text-sm text-blue-700">Style: {buttonData.button_color}</p>
+                        </div>
+                        <button
+                          onClick={() => setEditingButton(true)}
+                          className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                        >
+                          Edit Button
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-gray-600 text-center py-4">No button configured</p>
+                        <button
+                          onClick={() => setEditingButton(true)}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Add Button
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="flex flex-col h-full">
+              <CardHeader>
+                <CardTitle>Footer Organization</CardTitle>
+                <p className="text-sm text-gray-500 mt-2">Organize footer items into sections</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-semibold text-blue-900 mb-2">How to organize your footer:</h3>
+                    <ul className="text-sm text-blue-800 space-y-2 list-disc list-inside">
+                      <li>Add items to the footer menu</li>
+                      <li>For each item, set a <strong>Section Name</strong> (e.g., "Company", "Services", "Legal")</li>
+                      <li>Items with the same section name will be grouped together in a column</li>
+                      <li>Items without a section name will appear in an "Other" section</li>
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                    <p className="font-medium mb-2 text-gray-700">Example footer structure:</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="font-medium text-gray-900">Company</p>
+                        <p className="text-xs text-gray-600 mt-1">About</p>
+                        <p className="text-xs text-gray-600">Careers</p>
+                        <p className="text-xs text-gray-600">Blog</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Services</p>
+                        <p className="text-xs text-gray-600 mt-1">Web Design</p>
+                        <p className="text-xs text-gray-600">Development</p>
+                        <p className="text-xs text-gray-600">SEO</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Legal</p>
+                        <p className="text-xs text-gray-600 mt-1">Privacy Policy</p>
+                        <p className="text-xs text-gray-600">Terms</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {buttonData.has_button ? (
-                    <>
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="font-medium text-blue-900">{buttonData.button_label}</p>
-                        <p className="text-sm text-blue-700 mt-1">
-                          {buttonData.button_type === 'page'
-                            ? `Linked to page: ${pages.find(p => p.id === buttonData.button_page_id)?.title || 'Unknown'}`
-                            : buttonData.button_type === 'link'
-                            ? `URL: ${buttonData.button_link}`
-                            : `Phone: ${buttonData.button_phone}`}
-                        </p>
-                        <p className="text-sm text-blue-700">Style: {buttonData.button_color}</p>
-                      </div>
-                      <button
-                        onClick={() => setEditingButton(true)}
-                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                      >
-                        Edit Button
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-gray-600 text-center py-4">No button configured</p>
-                      <button
-                        onClick={() => setEditingButton(true)}
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Add Button
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

@@ -51,6 +51,7 @@ class MenuModel
                 mi.id,
                 mi.menu_id,
                 mi.label,
+                mi.section_name,
                 mi.type,
                 mi.link,
                 mi.page_id,
@@ -109,7 +110,7 @@ class MenuModel
     /**
      * Create a menu item
      */
-    public function createMenuItem(string $menuId, string $label, string $type, ?int $orderPosition = null, ?string $pageId = null, ?string $link = null, bool $isActive = true): ?string
+    public function createMenuItem(string $menuId, string $label, string $type, ?int $orderPosition = null, ?string $pageId = null, ?string $link = null, bool $isActive = true, ?string $sectionName = null): ?string
     {
         $menuItemId = $this->generateUuid();
 
@@ -122,8 +123,8 @@ class MenuModel
         }
 
         $stmt = $this->pdo->prepare(
-            'INSERT INTO menu_items (id, menu_id, label, type, page_id, link, order_position, is_active) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO menu_items (id, menu_id, label, type, page_id, link, section_name, order_position, is_active) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
 
         $success = $stmt->execute([
@@ -133,6 +134,7 @@ class MenuModel
             $type,
             $pageId,
             $link,
+            $sectionName,
             $orderPosition,
             $isActive ? 1 : 0
         ]);
@@ -166,6 +168,11 @@ class MenuModel
         if (isset($data['link'])) {
             $updateFields[] = 'link = ?';
             $params[] = $data['link'];
+        }
+
+        if (isset($data['section_name'])) {
+            $updateFields[] = 'section_name = ?';
+            $params[] = $data['section_name'];
         }
 
         if (isset($data['order_position'])) {
