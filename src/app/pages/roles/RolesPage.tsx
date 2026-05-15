@@ -1,7 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import React, { useEffect, useState } from 'react';
+import {
+  Shield,
+  Globe,
+  Building2,
+  Users,
+  Settings,
+  Palette,
+  FileText,
+  Image,
+  Languages,
+  Search,
+  Upload,
+  Trash2,
+  CheckCircle2,
+} from 'lucide-react';
+
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { Shield, CheckCircle2, XCircle, Lock, Globe } from 'lucide-react';
 import { api } from '../../services/api';
 
 interface RoleCounts {
@@ -18,59 +33,84 @@ export const RolesPage: React.FC = () => {
     editor: 0,
     visitor: 0,
   });
-  const [loadingCounts, setLoadingCounts] = useState(true);
-  const [countError, setCountError] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserCounts();
+    loadCounts();
   }, []);
 
-  const fetchUserCounts = async () => {
+  const loadCounts = async () => {
     try {
-      setLoadingCounts(true);
-      setCountError(null);
-      console.log('Fetching user counts by role...');
+      setLoading(true);
+
       const counts = await api.getUserCountsByRole();
-      console.log('User counts by role:', counts);
+
       setRoleCounts(counts);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to load user counts';
-      console.error('Fetch user counts error:', err);
-      setCountError(errorMsg);
-      // Keep default counts on error
+    } catch (error) {
+      console.error('Failed to load role counts:', error);
     } finally {
-      setLoadingCounts(false);
+      setLoading(false);
     }
   };
 
-  const globalRoles = [
+  const platformRoles = [
     {
       id: 'super_admin',
       name: 'Super Admin',
-      description: 'Full platform access and control',
-      userCount: roleCounts.super_admin,
-      color: 'bg-purple-100 text-purple-800',
+      description:
+        'Full CMS platform ownership and system-wide management.',
+      count: roleCounts.super_admin,
+      color: 'bg-purple-100 text-purple-700 border-purple-200',
+      capabilities: [
+        'Manage entire platform',
+        'Manage all users',
+        'Manage all websites',
+        'Global settings',
+        'System roles & permissions',
+        'Activity logs',
+      ],
     },
+
     {
       id: 'admin',
       name: 'Admin',
-      description: 'Manage content, settings, and publish',
-      userCount: roleCounts.admin,
-      color: 'bg-blue-100 text-blue-800',
+      description:
+        'Creates and manages websites and assigns editors to websites.',
+      count: roleCounts.admin,
+      color: 'bg-blue-100 text-blue-700 border-blue-200',
+      capabilities: [
+        'Create websites',
+        'Manage owned websites',
+        'Assign website editors',
+        'Manage website teams',
+      ],
     },
+
     {
       id: 'editor',
       name: 'Editor',
-      description: 'Manage content and media only',
-      userCount: roleCounts.editor,
-      color: 'bg-green-100 text-green-800',
+      description:
+        'Can access and manage websites assigned to them.',
+      count: roleCounts.editor,
+      color: 'bg-green-100 text-green-700 border-green-200',
+      capabilities: [
+        'Access assigned websites',
+        'Manage website content',
+        'Publish website updates',
+      ],
     },
+
     {
       id: 'visitor',
       name: 'Visitor',
-      description: 'Public website access only',
-      userCount: roleCounts.visitor,
-      color: 'bg-gray-100 text-gray-800',
+      description:
+        'Public-facing role with no CMS administration access.',
+      count: roleCounts.visitor,
+      color: 'bg-gray-100 text-gray-700 border-gray-200',
+      capabilities: [
+        'Public website access only',
+      ],
     },
   ];
 
@@ -78,373 +118,336 @@ export const RolesPage: React.FC = () => {
     {
       id: 'owner',
       name: 'Owner',
-      description: 'Full website control and access management',
-      color: 'bg-purple-100 text-purple-800',
+      color: 'bg-purple-100 text-purple-700 border-purple-200',
+      description:
+        'Full control over a website and its team members.',
+      permissions: [
+        {
+          icon: <FileText className="w-4 h-4" />,
+          label: 'Pages & Articles',
+        },
+        {
+          icon: <Image className="w-4 h-4" />,
+          label: 'Media Library',
+        },
+        {
+          icon: <Palette className="w-4 h-4" />,
+          label: 'Theme Customization',
+        },
+        {
+          icon: <Languages className="w-4 h-4" />,
+          label: 'Translations',
+        },
+        {
+          icon: <Search className="w-4 h-4" />,
+          label: 'SEO Settings',
+        },
+        {
+          icon: <Settings className="w-4 h-4" />,
+          label: 'Site Settings',
+        },
+        {
+          icon: <Users className="w-4 h-4" />,
+          label: 'Team Access Management',
+        },
+        {
+          icon: <Upload className="w-4 h-4" />,
+          label: 'Publish Content',
+        },
+        {
+          icon: <Trash2 className="w-4 h-4" />,
+          label: 'Delete Website',
+        },
+      ],
     },
+
     {
-      id: 'admin',
-      name: 'Admin',
-      description: 'Manage content and assign editors',
-      color: 'bg-blue-100 text-blue-800',
+      id: 'manager',
+      name: 'Manager',
+      color: 'bg-blue-100 text-blue-700 border-blue-200',
+      description:
+        'Manages the website and editors but cannot delete the website.',
+      permissions: [
+        {
+          icon: <FileText className="w-4 h-4" />,
+          label: 'Pages & Articles',
+        },
+        {
+          icon: <Image className="w-4 h-4" />,
+          label: 'Media Library',
+        },
+        {
+          icon: <Palette className="w-4 h-4" />,
+          label: 'Theme Customization',
+        },
+        {
+          icon: <Languages className="w-4 h-4" />,
+          label: 'Translations',
+        },
+        {
+          icon: <Search className="w-4 h-4" />,
+          label: 'SEO Settings',
+        },
+        {
+          icon: <Settings className="w-4 h-4" />,
+          label: 'Site Settings',
+        },
+        {
+          icon: <Users className="w-4 h-4" />,
+          label: 'Assign Editors',
+        },
+        {
+          icon: <Upload className="w-4 h-4" />,
+          label: 'Publish Content',
+        },
+      ],
     },
+
     {
       id: 'editor',
-      name: 'Editor',
-      description: 'Edit pages, articles, and media',
-      color: 'bg-green-100 text-green-800',
-    },
-    {
-      id: 'viewer',
-      name: 'Viewer',
-      description: 'Read-only access',
-      color: 'bg-gray-100 text-gray-800',
+      name: 'Website Editor',
+      color: 'bg-green-100 text-green-700 border-green-200',
+      description:
+        'Fully manages assigned website content and website configuration.',
+      permissions: [
+        {
+          icon: <FileText className="w-4 h-4" />,
+          label: 'Pages & Articles',
+        },
+        {
+          icon: <Image className="w-4 h-4" />,
+          label: 'Media Library',
+        },
+        {
+          icon: <Palette className="w-4 h-4" />,
+          label: 'Theme Customization',
+        },
+        {
+          icon: <Languages className="w-4 h-4" />,
+          label: 'Translations',
+        },
+        {
+          icon: <Search className="w-4 h-4" />,
+          label: 'SEO Settings',
+        },
+        {
+          icon: <Settings className="w-4 h-4" />,
+          label: 'Site Settings',
+        },
+        {
+          icon: <Upload className="w-4 h-4" />,
+          label: 'Publish Content',
+        },
+      ],
     },
   ];
-
-  const modules = [
-    'Dashboard',
-    'Users',
-    'Roles & Permissions',
-    'Websites',
-    'Pages',
-    'Articles',
-    'Media Library',
-    'Menus',
-    'Translations',
-    'Theme',
-    'SEO',
-    'Site Settings',
-    'Global Settings',
-    'Activity Logs',
-    'Preview',
-    'Publish',
-  ];
-
-  const globalPermissions: Record<string, Record<string, boolean>> = {
-    super_admin: {
-      'Dashboard': true,
-      'Users': true,
-      'Roles & Permissions': true,
-      'Websites': true,
-      'Pages': true,
-      'Articles': true,
-      'Media Library': true,
-      'Menus': true,
-      'Translations': true,
-      'Theme': true,
-      'SEO': true,
-      'Site Settings': true,
-      'Global Settings': true,
-      'Activity Logs': true,
-      'Preview': true,
-      'Publish': true,
-    },
-    admin: {
-      'Dashboard': true,
-      'Users': true,
-      'Roles & Permissions': false,
-      'Websites': true,
-      'Pages': true,
-      'Articles': true,
-      'Media Library': true,
-      'Menus': true,
-      'Translations': true,
-      'Theme': true,
-      'SEO': true,
-      'Site Settings': true,
-      'Global Settings': false,
-      'Activity Logs': false,
-      'Preview': true,
-      'Publish': true,
-    },
-    editor: {
-      'Dashboard': true,
-      'Users': false,
-      'Roles & Permissions': false,
-      'Websites': false,
-      'Pages': true,
-      'Articles': true,
-      'Media Library': true,
-      'Menus': false,
-      'Translations': false,
-      'Theme': false,
-      'SEO': false,
-      'Site Settings': false,
-      'Global Settings': false,
-      'Activity Logs': false,
-      'Preview': true,
-      'Publish': false,
-    },
-    visitor: {
-      'Dashboard': false,
-      'Users': false,
-      'Roles & Permissions': false,
-      'Websites': false,
-      'Pages': false,
-      'Articles': false,
-      'Media Library': false,
-      'Menus': false,
-      'Translations': false,
-      'Theme': false,
-      'SEO': false,
-      'Site Settings': false,
-      'Global Settings': false,
-      'Activity Logs': false,
-      'Preview': false,
-      'Publish': false,
-    },
-  };
-
-  const websitePermissions: Record<string, Record<string, boolean>> = {
-    owner: {
-      'Edit Pages': true,
-      'Edit Articles': true,
-      'Upload Media': true,
-      'Manage Menus': true,
-      'Website Settings': true,
-      'Access Management': true,
-      'Delete Website': true,
-      'Publish Content': true,
-    },
-    admin: {
-      'Edit Pages': true,
-      'Edit Articles': true,
-      'Upload Media': true,
-      'Manage Menus': true,
-      'Website Settings': true,
-      'Access Management': true,
-      'Delete Website': false,
-      'Publish Content': true,
-    },
-    editor: {
-      'Edit Pages': true,
-      'Edit Articles': true,
-      'Upload Media': true,
-      'Manage Menus': false,
-      'Website Settings': false,
-      'Access Management': false,
-      'Delete Website': false,
-      'Publish Content': true,
-    },
-    viewer: {
-      'Edit Pages': false,
-      'Edit Articles': false,
-      'Upload Media': false,
-      'Manage Menus': false,
-      'Website Settings': false,
-      'Access Management': false,
-      'Delete Website': false,
-      'Publish Content': false,
-    },
-  };
-
-  const [selectedGlobalRole, setSelectedGlobalRole] = useState('super_admin');
-  const [selectedWebsiteRole, setSelectedWebsiteRole] = useState('owner');
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
+      {/* HEADER */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Roles & Permissions</h1>
-        <p className="text-gray-600 mt-2">Manage role-based access control for your platform and websites</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Roles & Permissions
+        </h1>
+
+        <p className="text-gray-600 mt-2 max-w-3xl">
+          Manage platform-level access and website-level collaboration
+          roles for your CMS platform.
+        </p>
       </div>
 
-      {/* Error Alert */}
-      {countError && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">Could not load user counts: {countError}</p>
-            </div>
+      {/* PLATFORM ROLES */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+            <Globe className="w-5 h-5 text-indigo-700" />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Platform Roles
+            </h2>
+
+            <p className="text-gray-600 text-sm">
+              Global roles controlling access to the CMS platform itself.
+            </p>
           </div>
         </div>
-      )}
 
-      {/* ========== GLOBAL PLATFORM ROLES ========== */}
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Globe className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Global Platform Roles</h2>
-          </div>
-          <p className="text-gray-600">Platform-wide access control. Super Admin manages these roles. Admins only manage website-level access.</p>
-        </div>
-
-        {/* Global Roles Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {globalRoles.map((role) => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {platformRoles.map((role) => (
             <Card
               key={role.id}
-              className={`cursor-pointer transition-all ${
-                selectedGlobalRole === role.id ? 'ring-2 ring-indigo-500 shadow-lg' : ''
-              }`}
-              onClick={() => setSelectedGlobalRole(role.id)}
+              className="border border-gray-200 hover:shadow-lg transition-all duration-200"
             >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Shield className="w-8 h-8 text-indigo-600" />
+              <CardContent className="p-6 space-y-5">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-gray-700" />
+                      </div>
+
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {role.name}
+                        </h3>
+
+                        <p className="text-sm text-gray-500">
+                          {role.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <Badge className={role.color}>
-                    {loadingCounts ? (
-                      <span className="inline-block animate-pulse">...</span>
-                    ) : (
-                      `${role.userCount} user${role.userCount !== 1 ? 's' : ''}`
-                    )}
+                    {loading
+                      ? '...'
+                      : `${role.count} user${role.count !== 1 ? 's' : ''}`}
                   </Badge>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{role.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{role.description}</p>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    Capabilities
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {role.capabilities.map((capability) => (
+                      <div
+                        key={capability}
+                        className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm"
+                      >
+                        {capability}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </CardContent>
             </Card>
           ))}
         </div>
+      </section>
 
-        {/* Global Permission Matrix */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Global Platform Permissions</CardTitle>
-              <Badge className={globalRoles.find(r => r.id === selectedGlobalRole)?.color}>
-                {globalRoles.find(r => r.id === selectedGlobalRole)?.name}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Module</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Super Admin</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Admin</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Editor</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Visitor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {modules.map((module) => (
-                    <tr key={module} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">{module}</td>
-                      {['super_admin', 'admin', 'editor', 'visitor'].map((role) => (
-                        <td key={role} className="py-3 px-4 text-center">
-                          {globalPermissions[role][module] ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto" />
-                          ) : (
-                            <XCircle className="w-5 h-5 text-gray-300 mx-auto" />
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ========== WEBSITE-LEVEL ROLES ========== */}
-      <div className="space-y-6 pt-8 border-t border-gray-200">
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Lock className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Website-Level Roles</h2>
+      {/* WEBSITE ROLES */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-blue-700" />
           </div>
-          <p className="text-gray-600">Per-website access control. Website owners/admins assign these roles to their team members.</p>
+
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Website Roles
+            </h2>
+
+            <p className="text-gray-600 text-sm">
+              Website collaboration roles assigned per website.
+            </p>
+          </div>
         </div>
 
-        {/* Website Roles Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {websiteRoles.map((role) => (
             <Card
               key={role.id}
-              className={`cursor-pointer transition-all ${
-                selectedWebsiteRole === role.id ? 'ring-2 ring-indigo-500 shadow-lg' : ''
-              }`}
-              onClick={() => setSelectedWebsiteRole(role.id)}
+              className="border border-gray-200 hover:shadow-lg transition-all duration-200"
             >
-              <div className="space-y-3">
-                <Shield className="w-8 h-8 text-indigo-600" />
-                <div>
-                  <h3 className="font-semibold text-gray-900">{role.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{role.description}</p>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {role.name}
+                  </CardTitle>
+
+                  <Badge className={role.color}>
+                    {role.name}
+                  </Badge>
                 </div>
-              </div>
+
+                <p className="text-sm text-gray-600 mt-2">
+                  {role.description}
+                </p>
+              </CardHeader>
+
+              <CardContent className="space-y-3">
+                {role.permissions.map((permission) => (
+                  <div
+                    key={permission.label}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-gray-600">
+                        {permission.icon}
+                      </div>
+
+                      <span className="text-sm text-gray-800">
+                        {permission.label}
+                      </span>
+                    </div>
+
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  </div>
+                ))}
+              </CardContent>
             </Card>
           ))}
         </div>
+      </section>
 
-        {/* Website Permission Matrix */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Website-Level Permissions</CardTitle>
-              <Badge className={websiteRoles.find(r => r.id === selectedWebsiteRole)?.color}>
-                {websiteRoles.find(r => r.id === selectedWebsiteRole)?.name}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Capability</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Owner</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Admin</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Editor</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">Viewer</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(websitePermissions.owner).map((capability) => (
-                    <tr key={capability} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">{capability}</td>
-                      {['owner', 'admin', 'editor', 'viewer'].map((role) => (
-                        <td key={role} className="py-3 px-4 text-center">
-                          {websitePermissions[role][capability] ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto" />
-                          ) : (
-                            <XCircle className="w-5 h-5 text-gray-300 mx-auto" />
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ARCHITECTURE */}
+      <Card className="border border-indigo-200 bg-indigo-50/40">
+        <CardHeader>
+          <CardTitle className="text-indigo-900">
+            CMS Access Architecture
+          </CardTitle>
+        </CardHeader>
 
-        {/* Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Control Architecture</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2">How It Works</h4>
-              <ol className="space-y-2 text-sm text-gray-600">
-                <li><strong>1. Platform Level:</strong> Super Admins manage global user roles and platform settings</li>
-                <li><strong>2. Website Level:</strong> Website owners/admins assign team members specific roles within their websites</li>
-                <li><strong>3. Permissions:</strong> Each role has specific capabilities within their scope</li>
-                <li><strong>4. Security:</strong> Admins cannot manage global roles or access other websites they don't own</li>
-              </ol>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-900">
-                <strong>Best Practice:</strong> Website owners create access entries in their website's "Access Management" section, not in the global Users page.
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white rounded-2xl p-5 border border-indigo-100">
+              <h3 className="font-semibold text-gray-900 mb-3">
+                1. Platform Layer
+              </h3>
+
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Super Admins manage the CMS platform globally.
+                Admins create and manage websites.
               </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-indigo-100">
+              <h3 className="font-semibold text-gray-900 mb-3">
+                2. Website Layer
+              </h3>
+
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Websites have dedicated teams with their own
+                roles and permissions.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-indigo-100">
+              <h3 className="font-semibold text-gray-900 mb-3">
+                3. Editor Workflow
+              </h3>
+
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Editors access only websites assigned to them
+                and manage all website content/features.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-indigo-100 rounded-2xl p-5">
+            <p className="text-sm text-indigo-900 leading-relaxed">
+              <strong>Recommended Architecture:</strong> Editors should
+              not receive platform-wide permissions. Instead, they should
+              manage assigned websites through website-level access control.
+              This architecture scales better and matches modern CMS systems.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
