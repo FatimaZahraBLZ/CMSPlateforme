@@ -49,7 +49,8 @@ class WebsiteModel
             $user = $userStmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user && $user['role'] !== 'super_admin') {
-                $this->grantAccessToWebsite($userId, $websiteId, $userId);
+                // Grant with 'owner' role for non-super-admins
+                $this->grantWebsiteAccessWithRole($userId, $websiteId, 'owner', $userId);
             }
 
             $this->pdo->commit();
@@ -350,21 +351,27 @@ class WebsiteModel
 
     public function grantAccessToWebsite(string $userId, string $websiteId, string $grantedBy): bool
     {
-        try {
-            // Get user's global role
-            $stmt = $this->pdo->prepare('SELECT role FROM users WHERE id = ?');
-            $stmt->execute([$userId]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $this->grantWebsiteAccessWithRole($userId, $websiteId, 'editor', $grantedBy);
+    }
 
-            if (!$user) {
-                error_log("User not found: $userId");
-                return false;
+    /**
+     * Grant access to a website with a specific role
+     */
+    public function grantWebsiteAccessWithRole(string $userId, string $websiteId, string $role, string $grantedBy): bool
+    {
+        try {
+            // Check if user already has access
+            $stmt = $this->pdo->prepare(
+                'SELECT id FROM user_website_access WHERE user_id = ? AND website_id = ?'
+            );
+            $stmt->execute([$userId, $websiteId]);
+
+            if ($stmt->rowCount() > 0) {
+                // User already has access, just update the role
+                return $this->updateUserWebsiteRole($userId, $websiteId, $role);
             }
 
-            // Determine role for website access (use user's role, with editor default)
-            $role = ($user['role'] === 'editor') ? 'editor' : 'admin';
-
-            // Insert access record
+            // Insert new access record
             $stmt = $this->pdo->prepare(
                 'INSERT INTO user_website_access (id, user_id, website_id, role, granted_by)
                  VALUES (?, ?, ?, ?, ?)'
@@ -375,6 +382,94 @@ class WebsiteModel
         } catch (Exception $e) {
             error_log('Grant access error: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Get a user's role for a specific website
+     */
+    public function getUserWebsiteRole(string $userId, string $websiteId): ?string
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT role FROM user_website_access WHERE user_id = ? AND website_id = ? LIMIT 1'
+            );
+            $stmt->execute([$userId, $websiteId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ? $result['role'] : null;
+        } catch (Exception $e) {
+            error_log('Get user website role error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Update a user's website role
+     */
+    public function updateUserWebsiteRole(string $userId, string $websiteId, string $newRole): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'UPDATE user_website_access SET role = ? WHERE user_id = ? AND website_id = ?'
+            );
+            return $stmt->execute([$newRole, $userId, $websiteId]);
+        } catch (Exception $e) {
+            error_log('Update user website role error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Revoke a user's access to a website
+     */
+    public function revokeWebsiteAccess(string $userId, string $websiteId): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'DELETE FROM user_website_access WHERE user_id = ? AND website_id = ?'
+            );
+            return $stmt->execute([$userId, $websiteId]);
+        } catch (Exception $e) {
+            error_log('Revoke access error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get all users with access to a website, with their details
+     */
+    public function getWebsiteAccessList(string $websiteId): array
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT 
+                    uwa.user_id,
+                    uwa.role as website_role,
+                    uwa.granted_by,
+                    u.name,
+                    u.email,
+                    u.role as global_role,
+                    u.status,
+                    COALESCE(granter.name, "System") as granted_by_name
+                 FROM user_website_access uwa
+                 JOIN users u ON uwa.user_id = u.id
+                 LEFT JOIN users granter ON uwa.granted_by = granter.id
+                 WHERE uwa.website_id = ?
+                 ORDER BY 
+                    CASE uwa.role
+                        WHEN "owner" THEN 1
+                        WHEN "admin" THEN 2
+                        WHEN "editor" THEN 3
+                        WHEN "viewer" THEN 4
+                        ELSE 5
+                    END,
+                    u.name ASC'
+            );
+            $stmt->execute([$websiteId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log('Get website access list error: ' . $e->getMessage());
+            return [];
         }
     }
 

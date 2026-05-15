@@ -759,6 +759,7 @@ export const WebsitesPage: React.FC = () => {
             selectedWebsite={selectedWebsite}
             onSelect={handleSelectWebsite}
             onCreate={() => setShowWizard(true)}
+            onViewDetails={(website) => navigate(`/websites/${website.id}`)}
             onEdit={handleEditWebsite}
             onDelete={handleDeleteWebsite}
           />

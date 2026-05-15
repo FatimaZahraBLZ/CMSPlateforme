@@ -1,19 +1,25 @@
 import React, { useMemo } from 'react';
-import { RouterProvider, createBrowserRouter, Navigate } from 'react-router';
+import { RouterProvider, createBrowserRouter, Navigate, useNavigate } from 'react-router';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
+import { SuperAdminLayout } from '../layouts/SuperAdminLayout';
+import { AdminLayout } from '../layouts/AdminLayout';
+import { EditorLayout } from '../layouts/EditorLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { SubdomainService } from '../services/SubdomainService';
+import { useAuth } from '../contexts/AuthContext';
 
 // Auth pages
 import { LoginPage } from '../pages/auth/LoginPage';
 
 // Dashboard pages
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
+import { EditorDashboard } from '../pages/editor/EditorDashboard';
 import { UsersPage } from '../pages/users/UsersPage';
 import { RolesPage } from '../pages/roles/RolesPage';
 import { WebsitesPage } from '../pages/websites/WebsitesPage';
+import { WebsiteDetailsPage } from '../pages/websites/WebsiteDetailsPage';
 import { PagesPage } from '../pages/pages/PagesPage';
 import { ArticlesPage } from '../pages/articles/ArticlesPage';
 import { MediaPage } from '../pages/media/MediaPage';
@@ -36,6 +42,26 @@ import { BlogPage } from '../pages/public/BlogPage';
 import { ArticlePage } from '../pages/public/ArticlePage';
 import { ContactPage } from '../pages/public/ContactPage';
 import { PublicPage } from '../pages/public/PublicPage';
+
+// Role Redirect Component
+const RoleBasedRedirect: React.FC = () => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Route based on user role
+  if (user.role === 'super_admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  } else if (user.role === 'admin') {
+    return <Navigate to="/manage/dashboard" replace />;
+  } else if (user.role === 'editor') {
+    return <Navigate to="/editor" replace />;
+  }
+  
+  return <Navigate to="/login" replace />;
+};
 
 // CMS Router (for main platform and admin subdomains)
 const cmsRouter = createBrowserRouter([
@@ -72,6 +98,10 @@ const cmsRouter = createBrowserRouter([
       {
         path: 'websites',
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><WebsitesPage /></ProtectedRoute>,
+      },
+      {
+        path: 'websites/:id',
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><WebsiteDetailsPage /></ProtectedRoute>,
       },
       {
         path: 'pages',

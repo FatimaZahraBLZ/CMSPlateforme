@@ -595,6 +595,83 @@ export class ApiService {
       throw error;
     }
   }
+
+  // ========== WEBSITE ACCESS MANAGEMENT ==========
+
+  async getWebsiteAccess(websiteId: string) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access`, {
+        headers: this.getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to fetch website access');
+      }
+      return data.access || [];
+    } catch (error) {
+      console.error('Get website access error:', error);
+      throw error;
+    }
+  }
+
+  async grantWebsiteAccess(websiteId: string, userId: string, role: string) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({ userId, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to grant access');
+      }
+      return data;
+    } catch (error) {
+      console.error('Grant website access error:', error);
+      throw error;
+    }
+  }
+
+  async updateWebsiteAccess(websiteId: string, userId: string, role: string) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access/${encodeURIComponent(userId)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to update access');
+      }
+      return data;
+    } catch (error) {
+      console.error('Update website access error:', error);
+      throw error;
+    }
+  }
+
+  async revokeWebsiteAccess(websiteId: string, userId: string) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to revoke access');
+      }
+      return data;
+    } catch (error) {
+      console.error('Revoke website access error:', error);
+      throw error;
+    }
+  }
 }
 
 export const api = new ApiService();

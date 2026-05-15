@@ -476,4 +476,261 @@ class WebsitesController
             $this->respondServerError('Failed to check domain availability');
         }
     }
+
+    // ========== ACCESS MANAGEMENT ENDPOINTS ==========
+
+    /**
+     * GET /api/websites/{id}/access
+     * List all users with access to a website
+     */
+    public function getWebsiteAccess(string $websiteId): void
+    {
+        try {
+            $token = $this->getBearerToken();
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $userId = $payload['sub'];
+            $userRole = $this->getUserRole($userId);
+
+            // Check if website exists and user has access
+            if (!$this->websiteModel->userCanAccessWebsite($userId, $websiteId, $userRole)) {
+                $this->respondUnauthorized('Access denied for this website');
+                return;
+            }
+
+            $accessList = $this->websiteModel->getWebsiteAccessList($websiteId);
+
+            echo json_encode([
+                'status' => 'success',
+                'access' => $accessList,
+            ]);
+        } catch (Exception $e) {
+            error_log('getWebsiteAccess error: ' . $e->getMessage());
+            $this->respondServerError('Failed to fetch website access: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * POST /api/websites/{id}/access
+     * Grant access to a user for a website
+     */
+    public function grantWebsiteAccess(string $websiteId): void
+    {
+        try {
+            $token = $this->getBearerToken();
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $currentUserId = $payload['sub'];
+            $currentUserRole = $this->getUserRole($currentUserId);
+
+            // Check if user has access to manage this website
+            if (!$this->websiteModel->userCanAccessWebsite($currentUserId, $websiteId, $currentUserRole)) {
+                $this->respondUnauthorized('Access denied for this website');
+                return;
+            }
+
+            // Only owner/admin of the website can grant access
+            $userWebsiteRole = $this->websiteModel->getUserWebsiteRole($currentUserId, $websiteId);
+            if ($userWebsiteRole !== 'owner' && $userWebsiteRole !== 'admin' && $currentUserRole !== 'super_admin') {
+                $this->respondForbidden('Only website owner/admin can grant access');
+                return;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($input['userId']) || empty($input['role'])) {
+                $this->respondBadRequest('User ID and role are required');
+                return;
+            }
+
+            $targetUserId = $input['userId'];
+            $role = $input['role'];
+
+            // Validate role
+            $validRoles = ['owner', 'admin', 'editor', 'viewer'];
+            if (!in_array($role, $validRoles)) {
+                $this->respondBadRequest('Invalid role');
+                return;
+            }
+
+            // Admin cannot assign 'owner' role
+            if ($userWebsiteRole === 'admin' && $role === 'owner') {
+                $this->respondForbidden('Only owner can assign owner role');
+                return;
+            }
+
+            $success = $this->websiteModel->grantWebsiteAccessWithRole($targetUserId, $websiteId, $role, $currentUserId);
+
+            if (!$success) {
+                $this->respondServerError('Failed to grant access');
+                return;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Access granted successfully'
+            ]);
+        } catch (Exception $e) {
+            error_log('grantWebsiteAccess error: ' . $e->getMessage());
+            $this->respondServerError('Failed to grant access: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * PUT /api/websites/{id}/access/{userId}
+     * Update a user's role for a website
+     */
+    public function updateWebsiteAccess(string $websiteId, string $targetUserId): void
+    {
+        try {
+            $token = $this->getBearerToken();
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $currentUserId = $payload['sub'];
+            $currentUserRole = $this->getUserRole($currentUserId);
+
+            // Check if user has access to manage this website
+            if (!$this->websiteModel->userCanAccessWebsite($currentUserId, $websiteId, $currentUserRole)) {
+                $this->respondUnauthorized('Access denied for this website');
+                return;
+            }
+
+            // Only owner/admin can update roles
+            $userWebsiteRole = $this->websiteModel->getUserWebsiteRole($currentUserId, $websiteId);
+            if ($userWebsiteRole !== 'owner' && $userWebsiteRole !== 'admin' && $currentUserRole !== 'super_admin') {
+                $this->respondForbidden('Only website owner/admin can update roles');
+                return;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($input['role'])) {
+                $this->respondBadRequest('Role is required');
+                return;
+            }
+
+            $newRole = $input['role'];
+
+            // Validate role
+            $validRoles = ['owner', 'admin', 'editor', 'viewer'];
+            if (!in_array($newRole, $validRoles)) {
+                $this->respondBadRequest('Invalid role');
+                return;
+            }
+
+            // Prevent demoting owner
+            $targetUserRole = $this->websiteModel->getUserWebsiteRole($targetUserId, $websiteId);
+            if ($targetUserRole === 'owner' && $newRole !== 'owner') {
+                $this->respondForbidden('Cannot demote website owner');
+                return;
+            }
+
+            $success = $this->websiteModel->updateUserWebsiteRole($targetUserId, $websiteId, $newRole);
+
+            if (!$success) {
+                $this->respondServerError('Failed to update role');
+                return;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Role updated successfully'
+            ]);
+        } catch (Exception $e) {
+            error_log('updateWebsiteAccess error: ' . $e->getMessage());
+            $this->respondServerError('Failed to update role: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * DELETE /api/websites/{id}/access/{userId}
+     * Revoke a user's access to a website
+     */
+    public function revokeWebsiteAccess(string $websiteId, string $targetUserId): void
+    {
+        try {
+            $token = $this->getBearerToken();
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $currentUserId = $payload['sub'];
+            $currentUserRole = $this->getUserRole($currentUserId);
+
+            // Check if user has access to manage this website
+            if (!$this->websiteModel->userCanAccessWebsite($currentUserId, $websiteId, $currentUserRole)) {
+                $this->respondUnauthorized('Access denied for this website');
+                return;
+            }
+
+            // Only owner/admin can revoke access
+            $userWebsiteRole = $this->websiteModel->getUserWebsiteRole($currentUserId, $websiteId);
+            if ($userWebsiteRole !== 'owner' && $userWebsiteRole !== 'admin' && $currentUserRole !== 'super_admin') {
+                $this->respondForbidden('Only website owner/admin can revoke access');
+                return;
+            }
+
+            // Prevent revoking owner
+            $targetUserRole = $this->websiteModel->getUserWebsiteRole($targetUserId, $websiteId);
+            if ($targetUserRole === 'owner') {
+                $this->respondForbidden('Cannot revoke owner access');
+                return;
+            }
+
+            $success = $this->websiteModel->revokeWebsiteAccess($targetUserId, $websiteId);
+
+            if (!$success) {
+                $this->respondServerError('Failed to revoke access');
+                return;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Access revoked successfully'
+            ]);
+        } catch (Exception $e) {
+            error_log('revokeWebsiteAccess error: ' . $e->getMessage());
+            $this->respondServerError('Failed to revoke access: ' . $e->getMessage());
+        }
+    }
+
+    private function respondForbidden(string $message): void
+    {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => $message]);
+    }
 }

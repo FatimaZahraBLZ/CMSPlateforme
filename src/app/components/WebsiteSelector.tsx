@@ -10,6 +10,7 @@ interface WebsiteSelectorProps {
   onSelect: (website: WebsiteProject) => void;
   onCreate?: () => void;
   onEdit?: (website: WebsiteProject) => void;
+  onViewDetails?: (website: WebsiteProject) => void;
   onDelete?: (website: WebsiteProject) => void;
 }
 
@@ -19,6 +20,7 @@ export const WebsiteSelector: React.FC<WebsiteSelectorProps> = ({
   onSelect,
   onCreate,
   onEdit,
+  onViewDetails,
   onDelete,
 }) => {
   return (
@@ -88,6 +90,22 @@ export const WebsiteSelector: React.FC<WebsiteSelectorProps> = ({
                   {selectedWebsite?.id === website.id && <Badge variant="info">Selected</Badge>}
                 </div>
                 <div className="flex gap-2 pt-3">
+                  {onViewDetails && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(website);
+                      }}
+                      className="flex-1 text-xs flex items-center justify-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Details
+                    </Button>
+                  )}
                   {onEdit && (
                     <Button
                       size="sm"

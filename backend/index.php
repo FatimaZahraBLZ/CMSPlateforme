@@ -109,6 +109,38 @@ if (preg_match('#^/api/websites/([^/]+)$#', $path, $matches)) {
     }
 }
 
+// Website access management routes
+if (preg_match('#^/api/websites/([^/]+)/access$#', $path, $matches)) {
+    $websiteId = $matches[1];
+    $controller = new WebsitesController($pdo);
+
+    if ($method === 'GET') {
+        $controller->getWebsiteAccess($websiteId);
+        exit;
+    }
+
+    if ($method === 'POST') {
+        $controller->grantWebsiteAccess($websiteId);
+        exit;
+    }
+}
+
+if (preg_match('#^/api/websites/([^/]+)/access/([^/]+)$#', $path, $matches)) {
+    $websiteId = $matches[1];
+    $targetUserId = $matches[2];
+    $controller = new WebsitesController($pdo);
+
+    if ($method === 'PUT') {
+        $controller->updateWebsiteAccess($websiteId, $targetUserId);
+        exit;
+    }
+
+    if ($method === 'DELETE') {
+        $controller->revokeWebsiteAccess($websiteId, $targetUserId);
+        exit;
+    }
+}
+
 if ($path === '/api/pages' && $method === 'GET') {
     $controller = new PagesController($pdo);
     $controller->index();
