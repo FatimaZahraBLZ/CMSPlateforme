@@ -42,8 +42,15 @@ class WebsiteModel
                 $userId
             ]);
 
-            // Grant access to creator using their global role
-            $this->grantAccessToWebsite($userId, $websiteId, $userId);
+            // Grant access to creator only if NOT super_admin
+            // Super admin doesn't need an access row - they bypass access checks entirely
+            $userStmt = $this->pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+            $userStmt->execute([$userId]);
+            $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user && $user['role'] !== 'super_admin') {
+                $this->grantAccessToWebsite($userId, $websiteId, $userId);
+            }
 
             $this->pdo->commit();
             return $websiteId;
@@ -206,29 +213,46 @@ class WebsiteModel
         }
     }
 
-    public function getWebsitesForUser(string $userId): array
+    public function getWebsitesForUser(string $userId, string $userRole): array
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT w.id, w.name, w.subdomain, w.client, w.domain, w.status, w.default_language, w.languages, w.theme, w.created_at, w.updated_at, uwa.role
-             FROM user_website_access uwa
-             INNER JOIN websites w ON uwa.website_id = w.id
-             WHERE uwa.user_id = ?
-             ORDER BY w.created_at DESC'
-        );
-
-        $stmt->execute([$userId]);
-        $websites = $stmt->fetchAll();
-
-        // Decode JSON languages field
-        foreach ($websites as &$website) {
-            if ($website['languages']) {
-                $website['languages'] = json_decode($website['languages'], true);
+        try {
+            // Super admin sees ALL websites
+            if ($userRole === 'super_admin') {
+                $stmt = $this->pdo->prepare(
+                    'SELECT id, name, subdomain, client, domain, status, default_language, languages, theme, created_at, updated_at
+                     FROM websites
+                     ORDER BY created_at DESC'
+                );
+                $stmt->execute();
             } else {
-                $website['languages'] = ['en'];
+                // Admin/Editor only see assigned websites
+                $stmt = $this->pdo->prepare(
+                    'SELECT w.id, w.name, w.subdomain, w.client, w.domain, w.status, w.default_language, w.languages, w.theme, w.created_at, w.updated_at, uwa.role
+                     FROM user_website_access uwa
+                     INNER JOIN websites w ON uwa.website_id = w.id
+                     WHERE uwa.user_id = ?
+                     ORDER BY w.created_at DESC'
+                );
+                $stmt->execute([$userId]);
             }
-        }
 
-        return $websites;
+            $websites = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Decode JSON languages field
+            foreach ($websites as &$website) {
+                if ($website['languages']) {
+                    $website['languages'] = json_decode($website['languages'], true);
+                } else {
+                    $website['languages'] = ['en'];
+                }
+            }
+
+            return $websites;
+        } catch (Exception $e) {
+            error_log('getWebsitesForUser() error: ' . $e->getMessage());
+            error_log('User role: ' . $userRole . ', User ID: ' . $userId);
+            throw $e;
+        }
     }
 
     public function getWebsiteById(string $websiteId): ?array
@@ -308,8 +332,14 @@ class WebsiteModel
         }
     }
 
-    public function userCanAccessWebsite(string $userId, string $websiteId): bool
+    public function userCanAccessWebsite(string $userId, string $websiteId, string $userRole): bool
     {
+        // Super admin always has access
+        if ($userRole === 'super_admin') {
+            return true;
+        }
+
+        // Admin/Editor must have explicit access row
         $stmt = $this->pdo->prepare(
             'SELECT id FROM user_website_access WHERE user_id = ? AND website_id = ?'
         );

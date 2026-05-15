@@ -50,18 +50,39 @@ export class ApiService {
 
   async validateToken() {
     try {
+      const token = localStorage.getItem('cms_token');
+      if (!token) {
+        throw new Error('No token found in localStorage');
+      }
+
+      console.log('Validating token with backend, token starts with:', token.substring(0, 20) + '...');
+
       const res = await fetch(`${this.baseUrl}/api/auth/validate`, {
         method: 'GET',
-        headers: this.getAuthHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         credentials: 'include',
       });
 
-      const data = await res.json();
+      console.log('Validate token response status:', res.status);
+      
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        console.error('Response text:', await res.text());
+        throw new Error('Invalid response format from server');
+      }
 
       if (!res.ok) {
+        console.warn('Token validation failed:', data);
         throw new Error(data?.message || 'Token validation failed');
       }
 
+      console.log('Token validation successful');
       return data;
     } catch (error) {
       console.error('Token validation error:', error);

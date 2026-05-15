@@ -19,26 +19,41 @@ class WebsitesController
 
     public function index(): void
     {
-        $token = $this->getBearerToken();
+        try {
+            $token = $this->getBearerToken();
 
-        if (!$token) {
-            $this->respondUnauthorized('Authorization token is required');
-            return;
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $userId = $payload['sub'];
+            
+            // Get user's global role
+            $userRole = $this->getUserRole($userId);
+            if (!$userRole) {
+                $this->respondUnauthorized('User not found');
+                return;
+            }
+
+            $websites = $this->websiteModel->getWebsitesForUser($userId, $userRole);
+
+            echo json_encode([
+                'status' => 'success',
+                'websites' => $websites,
+            ]);
+        } catch (Exception $e) {
+            error_log('WebsitesController.index() error: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            $this->respondServerError('Failed to fetch websites: ' . $e->getMessage());
         }
-
-        $payload = $this->authService->validateJwt($token);
-
-        if (!$payload || empty($payload['sub'])) {
-            $this->respondUnauthorized('Invalid or expired token');
-            return;
-        }
-
-        $websites = $this->websiteModel->getWebsitesForUser($payload['sub']);
-
-        echo json_encode([
-            'status' => 'success',
-            'websites' => $websites,
-        ]);
     }
 
     private function getBearerToken(): ?string
@@ -67,6 +82,24 @@ class WebsitesController
         }
 
         return null;
+    }
+
+    private function getUserRole(string $userId): ?string
+    {
+        try {
+            $stmt = $this->pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+            if (!$stmt) {
+                error_log('Failed to prepare statement for getUserRole');
+                return null;
+            }
+            
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $user ? $user['role'] : null;
+        } catch (Exception $e) {
+            error_log('getUserRole() error: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public function create(): void
@@ -299,6 +332,13 @@ class WebsitesController
 
         $userId = $payload['sub'];
 
+        // Get user's global role
+        $userRole = $this->getUserRole($userId);
+        if (!$userRole) {
+            $this->respondUnauthorized('User not found');
+            return;
+        }
+
         // Get JSON input
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -308,7 +348,7 @@ class WebsitesController
         }
 
         // Check if website exists and user has access
-        if (!$this->websiteModel->userCanAccessWebsite($userId, $websiteId)) {
+        if (!$this->websiteModel->userCanAccessWebsite($userId, $websiteId, $userRole)) {
             $this->respondUnauthorized('Access denied for this website');
             return;
         }
@@ -435,13 +475,5 @@ class WebsitesController
         } catch (Exception $e) {
             $this->respondServerError('Failed to check domain availability');
         }
-    }
-
-    private function getUserRole(string $userId): ?string
-    {
-        $stmt = $this->pdo->prepare('SELECT role FROM users WHERE id = ?');
-        $stmt->execute([$userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ? $result['role'] : null;
     }
 }

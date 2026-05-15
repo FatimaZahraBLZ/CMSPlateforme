@@ -23,28 +23,34 @@ class PageModel
 
     /**
      * Get user role for website
+     * Super admin always returns 'admin' role without checking access table
+     * Admin/Editor must have explicit access row
      */
     public function getUserRoleForWebsite(string $userId, string $websiteId): ?string
     {
+        // First check global role
+        $stmt = $this->pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) return null;
+
+        // Super admin always has admin role without needing access row
+        if ($user['role'] === 'super_admin') {
+            return 'admin';
+        }
+
+        // Admin/Editor: check user_website_access table
         $stmt = $this->pdo->prepare("
-            SELECT uwa.role, u.role AS global_role
-            FROM user_website_access uwa
-            JOIN users u ON u.id = uwa.user_id
-            WHERE uwa.user_id = ? AND uwa.website_id = ?
+            SELECT role FROM user_website_access
+            WHERE user_id = ? AND website_id = ?
             LIMIT 1
         ");
 
         $stmt->execute([$userId, $websiteId]);
-        $row = $stmt->fetch();
+        $access = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) return null;
-
-        // 🔥 SUPER ADMIN OVERRIDE
-        if ($row['global_role'] === 'super_admin') {
-            return 'admin';
-        }
-
-        return $row['role'];
+        return $access ? $access['role'] : null;
     }
 
     /**

@@ -3,6 +3,34 @@
 
 header('Content-Type: application/json');
 
+// Set error handler to catch PHP errors and return as JSON
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("PHP Error: [$errno] $errstr in $errfile on line $errline");
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Internal server error',
+        'error' => $errstr,
+        'file' => $errfile,
+        'line' => $errline
+    ]);
+    exit;
+});
+
+// Set exception handler
+set_exception_handler(function($exception) {
+    error_log("Exception: " . $exception->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Internal server error',
+        'error' => $exception->getMessage(),
+        'file' => $exception->getFile(),
+        'line' => $exception->getLine()
+    ]);
+    exit;
+});
+
 // CORS handling
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed_origins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179', 'http://localhost:3000', 'http://127.0.0.1:5173'];

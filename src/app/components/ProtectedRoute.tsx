@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
 
@@ -8,18 +8,39 @@ interface ProtectedRouteProps {
   allowedRoles: Role[];
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated } = useAuth();
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  allowedRoles,
+}) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
-  // Temporarily allow access for testing
-  // if (!isAuthenticated || !user) {
-  //   return <Navigate to="/login" replace />;
-  // }
+  // Wait until session validation finishes
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500 text-sm">
+          Loading session...
+        </div>
+      </div>
+    );
+  }
 
-  // if (!allowedRoles.includes(user.role)) {
-  //   // Redirect to dashboard if not authorized
-  //   return <Navigate to="/dashboard" replace />;
-  // }
+  // Not logged in
+  if (!isAuthenticated || !user) {
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
+      />
+    );
+  }
+
+  // Role not allowed
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return <>{children}</>;
 };

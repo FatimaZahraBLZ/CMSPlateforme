@@ -21,9 +21,10 @@ class AuthService
     {
         $header = json_encode(['typ' => 'JWT', 'alg' => JWT_ALGO]);
 
+        // Extend JWT expiration to 7 days to match session expiration
         $payload = array_merge($payload, [
             'iat' => time(),
-            'exp' => time() + 3600,
+            'exp' => time() + (7 * 24 * 3600), // 7 days
         ]);
 
         $base64UrlHeader = $this->base64UrlEncode($header);

@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const { selectedWebsite, currentLanguage, setCurrentLanguage } = useCMS();
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,6 +65,14 @@ export const DashboardLayout: React.FC = () => {
     editor: 'bg-green-100 text-green-800',
     visitor: 'bg-gray-100 text-gray-800',
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500 text-sm">Restoring session...</div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;

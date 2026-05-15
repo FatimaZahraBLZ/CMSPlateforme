@@ -33,22 +33,28 @@ import { ProjectsPage } from './pages/public/ProjectsPage';
 import { BlogPage } from './pages/public/BlogPage';
 import { ArticlePage } from './pages/public/ArticlePage';
 import { ContactPage } from './pages/public/ContactPage';
+import { RootRedirect } from './components/RootRedirect';
+import { GuestRoute } from './components/GuestRoute';
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <Navigate to="/login" replace />,
-  },
+  path: '/',
+  element: <RootRedirect />,
+},
   {
-    path: '/login',
-    element: <AuthLayout />,
-    children: [
-      {
-        index: true,
-        Component: LoginPage,
-      },
-    ],
-  },
+  path: '/login',
+  element: (
+    <GuestRoute>
+      <AuthLayout />
+    </GuestRoute>
+  ),
+  children: [
+    {
+      index: true,
+      Component: LoginPage,
+    },
+  ],
+},
   {
     path: '/',
     element: <DashboardLayout />,
