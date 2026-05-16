@@ -699,6 +699,63 @@ async getWebsites() {
     }
   }
 
+  async getRecentPublishHistory(limit: number = 5) {
+  try {
+    const res = await fetch(
+      `${this.baseUrl}/api/dashboard/recent-publish-history?limit=${limit}`,
+      {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to fetch recent publish history');
+    }
+
+    return data.activities || [];
+  } catch (error) {
+    console.error('Get recent publish history error:', error);
+    throw error;
+  }
+}
+
+  async getActivityLogs(filters?: {
+  search?: string;
+  module?: string;
+  action?: string;
+  status?: string;
+}) {
+  try {
+    const params = new URLSearchParams();
+
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.module && filters.module !== 'all') params.append('module', filters.module);
+    if (filters?.action && filters.action !== 'all') params.append('action', filters.action);
+    if (filters?.status && filters.status !== 'all') params.append('status', filters.status);
+
+    const res = await fetch(`${this.baseUrl}/api/activity-logs?${params.toString()}`, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to fetch activity logs');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Get activity logs error:', error);
+    throw error;
+  }
+}
+
   async revokeWebsiteAccess(websiteId: string, userId: string) {
     try {
       const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access/${encodeURIComponent(userId)}`, {

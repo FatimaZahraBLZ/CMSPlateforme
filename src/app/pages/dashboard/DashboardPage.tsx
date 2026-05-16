@@ -30,12 +30,44 @@ interface DashboardStats {
   publishedPercentage: number;
 }
 
+interface RecentPublishActivity {
+  id: string;
+  websiteId: string;
+  websiteName: string;
+  websiteDomain?: string | null;
+  userId: string;
+  userName: string;
+  userEmail?: string | null;
+  action: string;
+  module: string;
+  itemId?: string | null;
+  itemName: string;
+  status: string;
+  errorMessage?: string | null;
+  publishedAt: string;
+}
+
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recentActivities, setRecentActivities] = useState<RecentPublishActivity[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+
+  const fetchRecentActivities = async () => {
+  try {
+    setRecentLoading(true);
+    const data = await api.getRecentPublishHistory(5);
+    setRecentActivities(data);
+  } catch (err) {
+    console.error('Failed to load recent publish history:', err);
+    setRecentActivities([]);
+  } finally {
+    setRecentLoading(false);
+  }
+};
 
   const fetchDashboardStats = async () => {
     try {
@@ -52,8 +84,9 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+  fetchDashboardStats();
+  fetchRecentActivities();
+}, []);
 
   const statCards = [
     {
@@ -197,65 +230,52 @@ export const DashboardPage: React.FC = () => {
   </CardHeader>
 
   <CardContent>
-    <div className="space-y-4">
-      {[
-        {
-          id: '1',
-          user: 'John Doe',
-          action: 'Published',
-          target: 'Homepage',
-          time: '5 minutes ago',
-        },
-        {
-          id: '2',
-          user: 'Jane Smith',
-          action: 'Created',
-          target: 'New Article',
-          time: '15 minutes ago',
-        },
-        {
-          id: '3',
-          user: 'Mike Johnson',
-          action: 'Updated',
-          target: 'About Page',
-          time: '1 hour ago',
-        },
-        {
-          id: '4',
-          user: 'Sarah Williams',
-          action: 'Uploaded',
-          target: 'Gallery Images',
-          time: '2 hours ago',
-        },
-        {
-          id: '5',
-          user: 'Tom Brown',
-          action: 'Modified',
-          target: 'Main Menu',
-          time: '3 hours ago',
-        },
-      ].map((activity) => (
-        <div
-          key={activity.id}
-          className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
-        >
-          <div>
-            <p className="text-sm text-gray-900">
-              <span className="font-semibold">{activity.user}</span>{' '}
-              {activity.action}{' '}
-              <span className="font-medium">{activity.target}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {activity.time}
-            </p>
+    {recentLoading ? (
+      <div className="space-y-4">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="animate-pulse py-3 border-b border-gray-100 last:border-b-0">
+            <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
+            <div className="h-3 bg-gray-200 rounded w-1/3" />
           </div>
+        ))}
+      </div>
+    ) : recentActivities.length === 0 ? (
+      <div className="text-center py-8 text-gray-500">
+        No publish history yet.
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {recentActivities.map((activity) => (
+          <div
+            key={activity.id}
+            className="flex items-center justify-between gap-4 py-3 border-b border-gray-100 last:border-b-0"
+          >
+            <div>
+              <p className="text-sm text-gray-900">
+                <span className="font-semibold">{activity.userName}</span>{' '}
+                {activity.action}{' '}
+                <span className="font-medium">{activity.itemName}</span>{' '}
+                in <span className="font-medium">{activity.module}</span>
+              </p>
 
-          <Button variant="ghost" size="sm">
-            View
-          </Button>
-        </div>
-      ))}
-    </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {activity.websiteName}
+                {activity.websiteDomain ? ` • ${activity.websiteDomain}` : ''} •{' '}
+                {activity.publishedAt
+                  ? new Date(activity.publishedAt.replace(' ', 'T')).toLocaleString()
+                  : 'Unknown time'}
+              </p>
+            </div>
+
+            <Link to="/activity-logs">
+              <Button variant="ghost" size="sm">
+                View
+              </Button>
+            </Link>
+          </div>
+        ))}
+      </div>
+    )}
   </CardContent>
 </Card>
 

@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../models/MenuModel.php';
 require_once __DIR__ . '/../models/PageModel.php';
+require_once __DIR__ . '/../models/PublishHistoryModel.php';
 
 class MenuController
 {
@@ -11,6 +12,7 @@ class MenuController
     private AuthService $authService;
     private MenuModel $menuModel;
     private PageModel $pageModel;
+    private PublishHistoryModel $publishHistoryModel;
 
     public function __construct(PDO $pdo)
     {
@@ -18,6 +20,7 @@ class MenuController
         $this->authService = new AuthService($pdo);
         $this->menuModel = new MenuModel($pdo);
         $this->pageModel = new PageModel($pdo);
+        $this->publishHistoryModel = new PublishHistoryModel($pdo);
     }
 
     /**
@@ -170,6 +173,18 @@ class MenuController
             return;
         }
 
+        $this->publishHistoryModel->insert(
+            $data['website_id'],
+            $payload['sub'],
+            [
+                'action' => 'create',
+                'module' => 'menus',
+                'item_id' => $menuItemId,
+                'item_name' => $data['label'] ?? 'Menu item',
+            ],
+            'success'
+        );
+
         echo json_encode(['status' => 'success', 'menu_item_id' => $menuItemId]);
     }
 
@@ -209,6 +224,18 @@ class MenuController
             return;
         }
 
+        $this->publishHistoryModel->insert(
+            $data['website_id'],
+            $payload['sub'],
+            [
+                'action' => 'update',
+                'module' => 'menus',
+                'item_id' => $menuItemId,
+                'item_name' => $data['label'] ?? 'Menu item',
+            ],
+            'success'
+        );
+
         echo json_encode(['status' => 'success']);
     }
 
@@ -246,6 +273,17 @@ class MenuController
             $this->respondServerError('Could not delete menu item');
             return;
         }
+
+        $this->publishHistoryModel->insert(
+            $websiteId,
+            $payload['sub'],
+            [
+                'action' => 'delete',
+                'module' => 'menus',
+                'item_id' => $menuItemId,
+            ],
+            'success'
+        );
 
         echo json_encode(['status' => 'success']);
     }

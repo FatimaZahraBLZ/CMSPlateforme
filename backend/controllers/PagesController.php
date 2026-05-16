@@ -4,6 +4,7 @@
 require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../models/PageModel.php';
 require_once __DIR__ . '/../models/MenuModel.php';
+require_once __DIR__ . '/../models/PublishHistoryModel.php';
 
 class PagesController
 {
@@ -12,12 +13,17 @@ class PagesController
     private PageModel $pageModel;
     private MenuModel $menuModel;
 
+    private PublishHistoryModel $publishHistoryModel;
+
+
+
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
         $this->authService = new AuthService($pdo);
         $this->pageModel = new PageModel($pdo);
         $this->menuModel = new MenuModel($pdo);
+        $this->publishHistoryModel = new PublishHistoryModel($pdo);
     }
 
     public function index(): void
@@ -89,6 +95,18 @@ class PagesController
                 $this->autoCreateMenuItemForPage($page);
             }
 
+            $this->publishHistoryModel->insert(
+                $data['website_id'],
+                $payload['sub'],
+                [
+                    'action' => 'create',
+                    'module' => 'pages',
+                    'item_id' => $page['id'],
+                    'item_name' => $data['title'] ?? 'Page',
+                ],
+                'success'
+            );
+
             echo json_encode(['status' => 'success', 'page' => $page]);
         } catch (PDOException $e) {
             error_log('Create page error: ' . $e->getMessage());
@@ -134,6 +152,20 @@ class PagesController
             return;
         }
 
+        $action = ($data['status'] ?? '') === 'published' ? 'publish' : 'update';
+        $this->publishHistoryModel->insert(
+            $existingPage['website_id'],
+            $payload['sub'],
+            [
+                'action' => $action,
+                'module' => 'pages',
+                'item_id' => $pageId,
+                'item_name' => $data['title'] ?? 'Page',
+                'status' => $data['status'] ?? null,
+            ],
+            'success'
+        );
+
         $page = $this->pageModel->getPageById($pageId);
         echo json_encode(['status' => 'success', 'page' => $page]);
     }
@@ -177,6 +209,17 @@ class PagesController
                 $this->respondServerError('Could not delete page');
                 return;
             }
+
+            $this->publishHistoryModel->insert(
+                $existingPage['website_id'],
+                $payload['sub'],
+                [
+                    'action' => 'delete',
+                    'module' => 'pages',
+                    'item_id' => $pageId,
+                ],
+                'success'
+            );
 
             // Optional: Delete menu items linked to this page
             // (Or leave them as orphaned, they won't appear in public menus anyway)

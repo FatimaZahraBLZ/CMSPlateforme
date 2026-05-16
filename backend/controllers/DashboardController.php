@@ -3,18 +3,21 @@
 
 require_once __DIR__ . '/../services/AuthService.php';
 require_once __DIR__ . '/../models/DashboardModel.php';
+require_once __DIR__ . '/../models/PublishHistoryModel.php';
 
 class DashboardController
 {
     private PDO $pdo;
     private AuthService $authService;
     private DashboardModel $dashboardModel;
+    private PublishHistoryModel $publishHistoryModel;
 
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
         $this->authService = new AuthService($pdo);
         $this->dashboardModel = new DashboardModel($pdo);
+        $this->publishHistoryModel = new PublishHistoryModel($pdo);
     }
 
     public function stats(): void
@@ -45,6 +48,61 @@ class DashboardController
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Failed to load dashboard stats',
+                'details' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function recentPublishHistory(): void
+    {
+        try {
+            $token = $this->getBearerToken();
+
+            if (!$token) {
+                $this->respondUnauthorized('Authorization token is required');
+                return;
+            }
+
+            $payload = $this->authService->validateJwt($token);
+
+            if (!$payload || empty($payload['sub'])) {
+                $this->respondUnauthorized('Invalid or expired token');
+                return;
+            }
+
+            $userId = $payload['sub'];
+
+            $stmt = $this->pdo->prepare("
+                SELECT role
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $this->respondUnauthorized('User not found');
+                return;
+            }
+
+            $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 5;
+
+            $activities = $this->publishHistoryModel->getRecentForDashboard(
+                $userId,
+                $user['role'],
+                $limit
+            );
+
+            echo json_encode([
+                'status' => 'success',
+                'activities' => $activities,
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to load recent publish history',
                 'details' => $e->getMessage(),
             ]);
         }
