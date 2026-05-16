@@ -45,17 +45,15 @@ export const HomePage: React.FC = () => {
         // Get the home page (slug = 'home')
         const pageResponse = await api.getPublicPage(websiteId, 'home');
 
-        if (pageResponse.status === 'success' && pageResponse.page) {
+        if (pageResponse.status === 'success' && pageResponse.page && pageResponse.page.status === 'published') {
           setHomePage(pageResponse.page);
         } else {
-          // If no home page exists, show default content
-          setHomePage(null);
+          // If no home page exists or is not published, show 404
+          setError('Home page not found');
         }
       } catch (err) {
         setError('Failed to load home page');
         console.error('Error loading home page:', err);
-        // Show default content on error
-        setHomePage(null);
       } finally {
         setLoading(false);
       }
@@ -109,6 +107,19 @@ export const HomePage: React.FC = () => {
             className="prose prose-lg max-w-none"
             dangerouslySetInnerHTML={{ __html: homePage.content }}
           />
+        </div>
+      </div>
+    );
+  }
+
+  // Show 404 error if home page not found or unpublished
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+          <p className="text-xl text-gray-600 mb-8">Page not found</p>
+          <p className="text-gray-500">{error}</p>
         </div>
       </div>
     );

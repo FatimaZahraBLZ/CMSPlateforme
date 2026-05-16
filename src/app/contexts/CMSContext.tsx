@@ -1,22 +1,21 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { WebsiteProject, Language } from '../types';
 
 interface CMSContextType {
   websites: WebsiteProject[];
   setWebsites: (websites: WebsiteProject[]) => void;
   selectedWebsite: WebsiteProject | null;
-  setSelectedWebsite: (website: WebsiteProject | null) => void;
+  setSelectedWebsite: (website: WebsiteProject | null, userId?: string) => void;
   currentLanguage: Language;
   setCurrentLanguage: (lang: Language) => void;
+  loadSelectedWebsiteForUser: (userId: string, websites: WebsiteProject[]) => void;
 }
 
 const CMSContext = createContext<CMSContextType | undefined>(undefined);
 
 export const useCMS = () => {
   const context = useContext(CMSContext);
-  if (!context) {
-    throw new Error('useCMS must be used within a CMSProvider');
-  }
+  if (!context) throw new Error('useCMS must be used within a CMSProvider');
   return context;
 };
 
@@ -25,31 +24,40 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedWebsite, setSelectedWebsiteState] = useState<WebsiteProject | null>(null);
   const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
 
-  useEffect(() => {
-    const storedWebsite = localStorage.getItem('selected_website');
-    if (storedWebsite) {
-      setSelectedWebsiteState(JSON.parse(storedWebsite));
-    }
-
-    const storedWebsites = localStorage.getItem('cms_websites');
-    if (storedWebsites) {
-      setWebsitesState(JSON.parse(storedWebsites));
-    }
-  }, []);
-
   const setWebsites = (newWebsites: WebsiteProject[]) => {
     setWebsitesState(newWebsites);
-    localStorage.setItem('cms_websites', JSON.stringify(newWebsites));
   };
 
-  const setSelectedWebsite = (website: WebsiteProject | null) => {
+  const setSelectedWebsite = (website: WebsiteProject | null, userId?: string) => {
     setSelectedWebsiteState(website);
-    if (website) {
-      localStorage.setItem('selected_website', JSON.stringify(website));
-      setCurrentLanguage(website.defaultLanguage);
-    } else {
-      localStorage.removeItem('selected_website');
+
+    if (!website) return;
+
+    setCurrentLanguage(website.defaultLanguage);
+
+    if (userId) {
+      localStorage.setItem(`selected_website_${userId}`, website.id);
     }
+  };
+
+  const loadSelectedWebsiteForUser = (userId: string, userWebsites: WebsiteProject[]) => {
+    const storedWebsiteId = localStorage.getItem(`selected_website_${userId}`);
+
+    if (!storedWebsiteId) {
+      setSelectedWebsiteState(null);
+      return;
+    }
+
+    const website = userWebsites.find((w) => w.id === storedWebsiteId);
+
+    if (!website) {
+      localStorage.removeItem(`selected_website_${userId}`);
+      setSelectedWebsiteState(null);
+      return;
+    }
+
+    setSelectedWebsiteState(website);
+    setCurrentLanguage(website.defaultLanguage);
   };
 
   return (
@@ -61,6 +69,7 @@ export const CMSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedWebsite,
         currentLanguage,
         setCurrentLanguage,
+        loadSelectedWebsiteForUser,
       }}
     >
       {children}

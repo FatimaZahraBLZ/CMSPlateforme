@@ -24,23 +24,29 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      await login(email, password);
-      navigate('/dashboard');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password';
-      setError(message);
-      console.error('Login error:', message);
-    } finally {
-      setLoading(false);
+  try {
+    await login(email, password);
+    // Navigate to home - RoleBasedRedirect will route based on user role
+    if (user?.role === 'editor') {
+      navigate('/editor');
+    }else {
+    navigate('/editor');
     }
-  };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Invalid email or password';
+    setError(message);
+    console.error('Login error:', message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex">

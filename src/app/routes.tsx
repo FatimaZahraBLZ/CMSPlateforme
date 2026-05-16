@@ -35,6 +35,7 @@ import { ArticlePage } from './pages/public/ArticlePage';
 import { ContactPage } from './pages/public/ContactPage';
 import { RootRedirect } from './components/RootRedirect';
 import { GuestRoute } from './components/GuestRoute';
+import { EditorDashboard } from './pages/editor/EditorDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -64,6 +65,10 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><DashboardPage /></ProtectedRoute>,
       },
       {
+        path: 'editor',
+        element: <ProtectedRoute allowedRoles={['editor']}><EditorDashboard/></ProtectedRoute>,
+      },
+      {
         path: 'users',
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><UsersPage /></ProtectedRoute>,
       },
@@ -89,23 +94,23 @@ export const router = createBrowserRouter([
       },
       {
         path: 'menus',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><MenusPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><MenusPage /></ProtectedRoute>,
       },
       {
         path: 'translations',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><TranslationsPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><TranslationsPage /></ProtectedRoute>,
       },
       {
         path: 'theme',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><ThemePage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><ThemePage /></ProtectedRoute>,
       },
       {
         path: 'seo',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SEOPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><SEOPage /></ProtectedRoute>,
       },
       {
         path: 'settings',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SiteSettingsPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><SiteSettingsPage /></ProtectedRoute>,
       },
       {
         path: 'global-settings',
@@ -117,11 +122,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'preview',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PreviewPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor', 'editor']}><PreviewPage /></ProtectedRoute>,
       },
       {
         path: 'publish',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PublishPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor', 'editor']}><PublishPage /></ProtectedRoute>,
       },
     ],
   },
@@ -130,7 +135,7 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       {
-        index: true,
+        path: 'Home',
         Component: HomePage,
       },
       {

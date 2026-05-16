@@ -294,23 +294,45 @@ export class ApiService {
   }
 
   // Websites
-  async getWebsites() {
-    try {
-      const res = await fetch(`${this.baseUrl}/api/websites`, {
-        headers: {
-          ...this.getAuthHeaders(),
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `Failed to fetch websites (${res.status})`);
-      }
-      return data.websites || [];
-    } catch (error) {
-      console.error('Get websites error:', error);
-      throw error;
+async getWebsites() {
+  try {
+    const res = await fetch(`${this.baseUrl}/api/websites`, {
+      headers: {
+        ...this.getAuthHeaders(),
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || `Failed to fetch websites (${res.status})`);
     }
+
+    return (data.websites || []).map((website: any) => ({
+      id: website.id,
+      name: website.name,
+      client: website.client || '',
+      domain: website.domain,
+      subdomain: website.subdomain,
+      status: website.status,
+
+      defaultLanguage: website.defaultLanguage || website.default_language || 'en',
+      languages: Array.isArray(website.languages)
+        ? website.languages
+        : JSON.parse(website.languages || '["en"]'),
+
+      theme: website.theme || 'default',
+
+      createdAt: website.createdAt || website.created_at,
+      updatedAt: website.updatedAt || website.updated_at,
+
+      userRole: website.userRole || website.user_role || website.role || 'editor',
+    }));
+  } catch (error) {
+    console.error('Get websites error:', error);
+    throw error;
   }
+}
 
   async createWebsite(data: any) {
     try {

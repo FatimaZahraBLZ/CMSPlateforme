@@ -5,6 +5,7 @@ import { useCMS } from '../contexts/CMSContext';
 import { Badge } from '../components/ui/Badge';
 import { Logo } from '../components/Logo';
 import {
+  Aperture,
   LayoutDashboard,
   Globe,
   FileText,
@@ -32,28 +33,31 @@ export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const websiteId = selectedWebsite?.id;
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const menuItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin', 'editor'] },
+    const menuItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin'] },
+    { path: '/editor', icon: Aperture, label: 'My websites', roles: ['editor'] },
     { path: '/users', icon: Users, label: 'Users', roles: ['super_admin', 'admin'] },
     { path: '/roles', icon: Shield, label: 'Roles & Permissions', roles: ['super_admin'] },
     { path: '/websites', icon: Globe, label: 'Websites', roles: ['super_admin', 'admin'] },
     { path: '/pages', icon: FileText, label: 'Pages', roles: ['super_admin', 'admin', 'editor'] },
     { path: '/articles', icon: BookOpen, label: 'Articles', roles: ['super_admin', 'admin', 'editor'] },
     { path: '/media', icon: Image, label: 'Media Library', roles: ['super_admin', 'admin', 'editor'] },
-    { path: '/menus', icon: MenuIcon, label: 'Menus', roles: ['super_admin', 'admin'] },
-    { path: '/translations', icon: Languages, label: 'Translations', roles: ['super_admin', 'admin'] },
-    { path: '/theme', icon: Palette, label: 'Theme', roles: ['super_admin', 'admin'] },
-    { path: '/seo', icon: Search, label: 'SEO', roles: ['super_admin', 'admin'] },
-    { path: '/settings', icon: Settings, label: 'Site Settings', roles: ['super_admin', 'admin'] },
+    { path: '/menus', icon: MenuIcon, label: 'Menus', roles: ['super_admin', 'admin', 'editor'] },
+    { path: '/translations', icon: Languages, label: 'Translations', roles: ['super_admin', 'admin', 'editor'] },
+    { path: '/theme', icon: Palette, label: 'Theme', roles: ['super_admin', 'admin', 'editor'] },
+    { path: '/seo', icon: Search, label: 'SEO', roles: ['super_admin', 'admin', 'editor'] },
+    { path: '/settings', icon: Settings, label: 'Site Settings', roles: ['super_admin', 'admin', 'editor'] },
     { path: '/global-settings', icon: Settings, label: 'Global Settings', roles: ['super_admin'] },
     { path: '/activity-logs', icon: ScrollText, label: 'Activity Logs', roles: ['super_admin'] },
   ];
+
 
   const filteredMenuItems = menuItems.filter(item =>
     user && item.roles.includes(user.role)

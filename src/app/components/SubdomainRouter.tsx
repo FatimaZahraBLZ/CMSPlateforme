@@ -66,10 +66,6 @@ const RoleBasedRedirect: React.FC = () => {
 // CMS Router (for main platform and admin subdomains)
 const cmsRouter = createBrowserRouter([
   {
-    path: '/',
-    element: <Navigate to="/login" replace />,
-  },
-  {
     path: '/login',
     element: <AuthLayout />,
     children: [
@@ -86,6 +82,10 @@ const cmsRouter = createBrowserRouter([
       {
         path: 'dashboard',
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><DashboardPage /></ProtectedRoute>,
+      },
+            {
+        path: 'editor',
+        element: <ProtectedRoute allowedRoles={['editor']}><EditorDashboard /></ProtectedRoute>,
       },
       {
         path: 'users',
@@ -117,23 +117,23 @@ const cmsRouter = createBrowserRouter([
       },
       {
         path: 'menus',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><MenusPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><MenusPage /></ProtectedRoute>,
       },
       {
         path: 'translations',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><TranslationsPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><TranslationsPage /></ProtectedRoute>,
       },
       {
         path: 'theme',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><ThemePage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><ThemePage /></ProtectedRoute>,
       },
       {
         path: 'seo',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SEOPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><SEOPage /></ProtectedRoute>,
       },
       {
         path: 'settings',
-        element: <ProtectedRoute allowedRoles={['super_admin', 'admin']}><SiteSettingsPage /></ProtectedRoute>,
+        element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><SiteSettingsPage /></ProtectedRoute>,
       },
       {
         path: 'global-settings',

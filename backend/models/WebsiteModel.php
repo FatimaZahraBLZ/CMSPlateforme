@@ -228,7 +228,7 @@ class WebsiteModel
             } else {
                 // Admin/Editor only see assigned websites
                 $stmt = $this->pdo->prepare(
-                    'SELECT w.id, w.name, w.subdomain, w.client, w.domain, w.status, w.default_language, w.languages, w.theme, w.created_at, w.updated_at, uwa.role
+                    'SELECT w.id, w.name, w.subdomain, w.client, w.domain, w.status, w.default_language, w.languages, w.theme, w.created_at, w.updated_at, uwa.role AS userRole
                      FROM user_website_access uwa
                      INNER JOIN websites w ON uwa.website_id = w.id
                      WHERE uwa.user_id = ?
