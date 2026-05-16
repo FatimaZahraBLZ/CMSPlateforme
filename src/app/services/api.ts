@@ -272,6 +272,27 @@ export class ApiService {
     }
   }
 
+  async getDashboardStats() {
+  try {
+    const res = await fetch(`${this.baseUrl}/api/dashboard/stats`, {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || `Failed to fetch dashboard stats (${res.status})`);
+    }
+
+    return data.stats;
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    throw error;
+  }
+}
+
   async getUserCountsByRole() {
     try {
       const res = await fetch(`${this.baseUrl}/api/users/counts`, {

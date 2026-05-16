@@ -55,6 +55,7 @@ require_once __DIR__ . '/controllers/PagesController.php';
 require_once __DIR__ . '/controllers/MenuController.php';
 require_once __DIR__ . '/controllers/UsersController.php';
 require_once __DIR__ . '/controllers/PublicController.php';
+require_once __DIR__ . '/controllers/DashboardController.php';
 
 
 $pdo = getPDO();
@@ -91,6 +92,12 @@ if ($path === '/api/websites' && $method === 'POST') {
 if ($path === '/api/websites/check-domain' && $method === 'GET') {
     $controller = new WebsitesController($pdo);
     $controller->checkDomain();
+    exit;
+}
+
+if ($path === '/api/dashboard/stats' && $method === 'GET') {
+    $controller = new DashboardController($pdo);
+    $controller->stats();
     exit;
 }
 
