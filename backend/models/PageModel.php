@@ -266,14 +266,18 @@ class PageModel
      * Page is hidden from both admin and public, but data remains
      */
     public function softDeletePage(string $id, string $userId): bool
-    {
-        $stmt = $this->pdo->prepare('
-            UPDATE pages
-            SET is_deleted = TRUE, deleted_at = NOW(), deleted_by = ?, status = "deleted", updated_at = NOW()
-            WHERE id = ?
-        ');
-        return $stmt->execute([$userId, $id]);
-    }
+{
+    $stmt = $this->pdo->prepare('
+        UPDATE pages
+        SET is_deleted = TRUE,
+            deleted_at = NOW(),
+            deleted_by = ?,
+            updated_at = NOW()
+        WHERE id = ?
+    ');
+
+    return $stmt->execute([$userId, $id]);
+}
 
     /**
      * HARD DELETE - Permanently remove page

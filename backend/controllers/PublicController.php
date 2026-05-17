@@ -134,7 +134,10 @@ class PublicController {
             $stmt = $this->pdo->prepare("
                 SELECT id, title, slug, content, language, status, meta_title, meta_description, meta_image, created_at, updated_at
                 FROM pages
-                WHERE website_id = ? AND slug = ? AND status = 'published'
+                WHERE website_id = ?
+                AND slug = ?
+                AND status = 'published'
+                AND is_deleted = FALSE
                 LIMIT 1
             ");
 

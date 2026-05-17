@@ -164,28 +164,28 @@ export const PagesPage: React.FC = () => {
   };
 
   // ============================================
-  // 4. DELETE PAGE (ADMIN ONLY)
+  // 4. DELETE PAGE 
   // ============================================
   const handleDeletePage = async (pageId: string, title: string) => {
-    if (!user || user.role === 'editor') {
-      showNotification('error', 'Only admins can delete pages');
-      return;
-    }
+  if (!user) {
+    showNotification('error', 'You must be logged in to delete pages');
+    return;
+  }
 
-    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) {
-      return;
-    }
+  if (!window.confirm(`Are you sure you want to delete "${title}"?`)) {
+    return;
+  }
 
-    try {
-      await api.deletePage(pageId);
-      showNotification('success', `Page "${title}" deleted successfully`);
-      setPages(prev => prev.filter(p => p.id !== pageId));
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to delete page';
-      showNotification('error', errorMsg);
-      console.error('Delete page error:', err);
-    }
-  };
+  try {
+    await api.deletePage(pageId);
+    showNotification('success', `Page "${title}" deleted successfully`);
+    setPages(prev => prev.filter(p => p.id !== pageId));
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to delete page';
+    showNotification('error', errorMsg);
+    console.error('Delete page error:', err);
+  }
+};
 
   // ============================================
   // 5. EDIT PAGE (LOAD INTO FORM)
@@ -395,16 +395,14 @@ export const PagesPage: React.FC = () => {
                         {page.status === 'published' ? 'Unpublish' : 'Publish'}
                       </Button>
 
-                      {/* DELETE BUTTON (ADMIN ONLY) */}
-                      {user && user.role !== 'editor' && (
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => handleDeletePage(page.id, page.title)}
-                        >
-                          Delete
-                        </Button>
-                      )}
+                      {/* DELETE BUTTON  */}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDeletePage(page.id, page.title)}
+                       >
+                       Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

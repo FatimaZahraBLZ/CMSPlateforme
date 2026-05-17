@@ -190,12 +190,15 @@ class PagesController
             return;
         }
 
-        $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $existingPage['website_id']);
-        if ($role !== 'admin') {
-            $this->respondUnauthorized('Only admins can delete pages');
-            return;
-        }
+        $role = $this->pageModel->getUserRoleForWebsite(
+        $payload['sub'],
+        $existingPage['website_id']
+        );
 
+        if (!$role || !in_array($role, ['admin', 'editor'])) {
+        $this->respondUnauthorized('Access denied for this website');
+        return;
+        }
         try {
             // ✅ SOFT DELETE: Mark page as deleted (not physically removed)
             // This hides page from:
@@ -261,9 +264,10 @@ class PagesController
         }
 
         $role = $this->pageModel->getUserRoleForWebsite($payload['sub'], $existingPage['website_id']);
-        if ($role !== 'admin') {
-            $this->respondUnauthorized('Only admins can restore pages');
-            return;
+
+        if (!$role || !in_array($role, ['admin', 'editor'])) {
+        $this->respondUnauthorized('Access denied for this website');
+        return;
         }
 
         try {
