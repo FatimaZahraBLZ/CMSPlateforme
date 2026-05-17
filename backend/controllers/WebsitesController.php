@@ -175,12 +175,20 @@ class WebsitesController
             
             // Create default pages
             error_log("Creating default pages for website: $websiteId");
-            $this->createDefaultPages($websiteId, $websiteData['defaultLanguage']);
+            $this->createDefaultPages(
+            $websiteId,
+            $websiteData['defaultLanguage'],
+            $websiteData['theme'] ?? 'minimal'
+            );
             error_log("Default pages created successfully");
 
             // Create default menu
             error_log("Creating default menu for website: $websiteId");
-            $this->createDefaultMenu($websiteId, $websiteData['defaultLanguage']);
+            $this->createDefaultMenu(
+            $websiteId,
+            $websiteData['defaultLanguage'],
+            $websiteData['theme'] ?? 'minimal'
+            );
             error_log("Default menu created successfully");
 
             // Create default settings
@@ -195,63 +203,176 @@ class WebsitesController
         }
     }
 
-    private function createDefaultPages(string $websiteId, string $defaultLanguage): void
-    {
-        $defaultPages = [
+    private function createDefaultPages(string $websiteId, string $defaultLanguage, string $theme = 'minimal'): void
+{
+    $defaultPages = $this->getDefaultPagesByTheme($theme, $defaultLanguage);
+
+    error_log("Creating " . count($defaultPages) . " default pages for website: $websiteId, theme: $theme");
+
+    foreach ($defaultPages as $index => $page) {
+        try {
+            error_log("Creating page $index: " . $page['slug']);
+            $this->websiteModel->createDefaultPage($websiteId, $page);
+            error_log("Successfully created page: " . $page['slug']);
+        } catch (Exception $e) {
+            error_log("Error creating page " . $page['slug'] . ": " . $e->getMessage());
+            throw $e;
+        }
+    }
+}
+
+private function getDefaultPagesByTheme(string $theme, string $language): array
+{
+    $theme = strtolower($theme);
+
+    $pagesByTheme = [
+        'minimal' => [
             [
                 'title' => 'Home',
                 'slug' => 'home',
-                'content' => $this->getDefaultPageContent('home', $defaultLanguage),
-                'language' => $defaultLanguage,
+                'content' => '<h1>Welcome</h1><p>This is a simple and clean website.</p>',
+                'language' => $language,
                 'status' => 'published',
-                'is_homepage' => true
+                'is_homepage' => true,
             ],
             [
                 'title' => 'About',
                 'slug' => 'about',
-                'content' => $this->getDefaultPageContent('about', $defaultLanguage),
-                'language' => $defaultLanguage,
+                'content' => '<h1>About</h1><p>Introduce yourself or your project here.</p>',
+                'language' => $language,
                 'status' => 'published',
-                'is_homepage' => false
+                'is_homepage' => false,
             ],
             [
                 'title' => 'Contact',
                 'slug' => 'contact',
-                'content' => $this->getDefaultPageContent('contact', $defaultLanguage),
-                'language' => $defaultLanguage,
+                'content' => '<h1>Contact</h1><p>Add your contact information here.</p>',
+                'language' => $language,
                 'status' => 'published',
-                'is_homepage' => false
-            ]
-        ];
+                'is_homepage' => false,
+            ],
+        ],
 
-        error_log("Creating " . count($defaultPages) . " default pages for website: $websiteId");
-        
-        foreach ($defaultPages as $index => $page) {
-            try {
-                error_log("Creating page $index: " . $page['slug']);
-                $this->websiteModel->createDefaultPage($websiteId, $page);
-                error_log("Successfully created page: " . $page['slug']);
-            } catch (Exception $e) {
-                error_log("Error creating page " . $page['slug'] . ": " . $e->getMessage());
-                throw $e;
-            }
-        }
+        'business' => [
+            [
+                'title' => 'Home',
+                'slug' => 'home',
+                'content' => '<h1>Welcome to Our Business</h1><p>Professional solutions for your needs.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => true,
+            ],
+            [
+                'title' => 'About Us',
+                'slug' => 'about',
+                'content' => '<h1>About Us</h1><p>Learn more about our company, mission, and values.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'Services',
+                'slug' => 'services',
+                'content' => '<h1>Our Services</h1><p>Present your main services here.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'Projects',
+                'slug' => 'projects',
+                'content' => '<h1>Our Projects</h1><p>Showcase your previous work and achievements.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'Contact',
+                'slug' => 'contact',
+                'content' => '<h1>Contact Us</h1><p>Get in touch with our team.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+        ],
+
+        'blog' => [
+            [
+                'title' => 'Home',
+                'slug' => 'home',
+                'content' => '<h1>Welcome to the Blog</h1><p>Read our latest stories, updates, and articles.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => true,
+            ],
+            [
+                'title' => 'Blog',
+                'slug' => 'blog',
+                'content' => '<h1>Blog</h1><p>Browse all articles and updates here.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'Categories',
+                'slug' => 'categories',
+                'content' => '<h1>Categories</h1><p>Explore articles by category.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'About',
+                'slug' => 'about',
+                'content' => '<h1>About This Blog</h1><p>Tell readers about the purpose of this blog.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+            [
+                'title' => 'Contact',
+                'slug' => 'contact',
+                'content' => '<h1>Contact</h1><p>Contact the blog author or editorial team.</p>',
+                'language' => $language,
+                'status' => 'published',
+                'is_homepage' => false,
+            ],
+        ],
+    ];
+
+    return $pagesByTheme[$theme] ?? $pagesByTheme['minimal'];
+}
+
+    private function createDefaultMenu(string $websiteId, string $defaultLanguage, string $theme = 'minimal'): void
+{
+    $pages = $this->getDefaultPagesByTheme($theme, $defaultLanguage);
+
+    $headerMenuItems = [];
+
+    foreach ($pages as $index => $page) {
+        $headerMenuItems[] = [
+            'title' => $page['title'],
+            'url' => $page['slug'] === 'home' ? '/' : '/' . $page['slug'],
+            'order' => $index + 1,
+        ];
     }
 
-    private function createDefaultMenu(string $websiteId, string $defaultLanguage): void
-    {
-        // Create Header Menu with default items (Home, About, Contact)
-        $headerMenuItems = [
-            ['title' => 'Home', 'url' => '/', 'order' => 1],
-            ['title' => 'About', 'url' => '/about', 'order' => 2],
-            ['title' => 'Contact', 'url' => '/contact', 'order' => 3]
-        ];
+    $this->websiteModel->createDefaultMenu(
+        $websiteId,
+        'Header Menu',
+        $headerMenuItems,
+        $defaultLanguage,
+        'header'
+    );
 
-        $this->websiteModel->createDefaultMenu($websiteId, 'Header Menu', $headerMenuItems, $defaultLanguage, 'header');
-
-        // Create Footer Menu (empty)
-        $this->websiteModel->createDefaultMenu($websiteId, 'Footer Menu', [], $defaultLanguage, 'footer');
-    }
+    $this->websiteModel->createDefaultMenu(
+        $websiteId,
+        'Footer Menu',
+        [],
+        $defaultLanguage,
+        'footer'
+    );
+}
 
     private function createDefaultSettings(string $websiteId): void
     {
