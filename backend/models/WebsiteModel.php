@@ -87,46 +87,53 @@ class WebsiteModel
         );
     }
 
-    public function createDefaultPage(string $websiteId, array $pageData): void
-    {
-        try {
-            error_log("WebsiteModel.createDefaultPage - Inserting page: " . json_encode($pageData));
-            
-            // Note: Database table uses 'created_by', 'updated_by' instead of direct insert
-            // Get system user ID or use a default
-            $systemUserId = '00000000-0000-0000-0000-000000000001'; // Super Admin UUID
-            
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO pages (id, website_id, title, slug, content, language, status, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            );
+    public function createDefaultPage(string $websiteId, array $page): ?string
+{
+    $pageId = $this->generateUuid();
 
-            $pageId = $this->generateUuid();
-            
-            $success = $stmt->execute([
-                $pageId,
-                $websiteId,
-                $pageData['title'],
-                $pageData['slug'],
-                $pageData['content'],
-                $pageData['language'] ?? 'en',
-                $pageData['status'],
-                $systemUserId
-            ]);
-            
-            if ($success) {
-                error_log("Successfully inserted page with ID: $pageId");
-            } else {
-                error_log("Failed to execute INSERT statement");
-                $errorInfo = $stmt->errorInfo();
-                error_log("SQL Error: " . json_encode($errorInfo));
-            }
-        } catch (Exception $e) {
-            error_log("Exception in createDefaultPage: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
-            throw $e;
-        }
+    error_log('WebsiteModel.createDefaultPage - Inserting page: ' . json_encode($page));
+
+    $stmt = $this->pdo->prepare("
+        INSERT INTO pages (
+            id,
+            website_id,
+            title,
+            slug,
+            content,
+            language,
+            status,
+            template,
+            created_by,
+            published_by,
+            published_at,
+            is_deleted
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+    ");
+
+    $userId = '00000000-0000-0000-0000-000000000001';
+
+    $success = $stmt->execute([
+        $pageId,
+        $websiteId,
+        $page['title'],
+        $page['slug'],
+        $page['content'],
+        $page['language'],
+        $page['status'],
+        $page['template'] ?? 'minimal-standard',
+        $userId,
+        $page['status'] === 'published' ? $userId : null,
+    ]);
+
+    if (!$success) {
+        return null;
     }
+
+    error_log("Successfully inserted page with ID: $pageId");
+
+    return $pageId;
+}
 
     public function createDefaultMenu(string $websiteId, string $menuName, array $menuItems, string $language, string $type = 'header'): void
     {
@@ -255,6 +262,60 @@ class WebsiteModel
             throw $e;
         }
     }
+
+    public function createTemplate(
+    string $websiteId,
+    string $name,
+    string $slug,
+    string $themeType,
+    string $pageType,
+    string $layoutType,
+    array $sections,
+    array $settings = [],
+    ?string $description = null,
+    ?string $headerComponent = null,
+    ?string $footerComponent = null,
+    bool $sidebarEnabled = false
+): ?string {
+    $templateId = $this->generateUuid();
+
+    $stmt = $this->pdo->prepare("
+        INSERT INTO templates (
+            id,
+            website_id,
+            name,
+            slug,
+            theme_type,
+            page_type,
+            layout_type,
+            header_component,
+            footer_component,
+            sidebar_enabled,
+            sections,
+            settings,
+            description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $success = $stmt->execute([
+        $templateId,
+        $websiteId,
+        $name,
+        $slug,
+        $themeType,
+        $pageType,
+        $layoutType,
+        $headerComponent,
+        $footerComponent,
+        $sidebarEnabled ? 1 : 0,
+        json_encode($sections, JSON_UNESCAPED_UNICODE),
+        json_encode($settings, JSON_UNESCAPED_UNICODE),
+        $description,
+    ]);
+
+    return $success ? $templateId : null;
+}
 
     public function getWebsiteById(string $websiteId): ?array
     {

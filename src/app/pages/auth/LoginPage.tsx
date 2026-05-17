@@ -83,7 +83,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {/* Headline */}
             <h2 className="text-4xl font-bold mb-4 leading-tight">
-              Custom CMS Platform for<br />Client Website Management
+              Custom CMS Plateforme for<br />Client Website Management
             </h2>
             <p className="text-lg text-blue-100 mb-8">
               Manage websites, content, media, translations, and publication from one secure platform

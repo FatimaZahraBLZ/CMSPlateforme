@@ -118,54 +118,139 @@ class PublicController {
      * GET /api/public/page?website_id=123&slug=home
      */
     public function getPage() {
-        try {
-            $websiteId = $_GET['website_id'] ?? null;
-            $slug = $_GET['slug'] ?? null;
+    try {
+        $websiteId = $_GET['website_id'] ?? null;
+        $slug = $_GET['slug'] ?? null;
+        $language = $_GET['language'] ?? 'en';
 
-            if (!$websiteId || !$slug) {
-                http_response_code(400);
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'website_id and slug are required'
-                ]);
-                return;
-            }
+        if (!$websiteId || !$slug) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'website_id and slug are required'
+            ]);
+            return;
+        }
 
+        // 1. Get website
+        $stmt = $this->pdo->prepare("
+            SELECT id, name, subdomain, domain, status, default_language, theme
+            FROM websites
+            WHERE id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$websiteId]);
+        $website = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$website) {
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Website not found'
+            ]);
+            return;
+        }
+
+        // 2. Get published page
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                id, website_id, title, slug, content, image,
+                language, status, meta_title, meta_description,
+                meta_image, created_at, updated_at, published_at,
+                template, excerpt
+            FROM pages
+            WHERE website_id = ?
+              AND slug = ?
+              AND language = ?
+              AND status = 'published'
+              AND is_deleted = 0
+            LIMIT 1
+        ");
+
+        $stmt->execute([$websiteId, $slug, $language]);
+        $page = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$page) {
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Page not found'
+            ]);
+            return;
+        }
+
+        // 3. Get template linked to page.template
+        $template = null;
+
+        if (!empty($page['template'])) {
             $stmt = $this->pdo->prepare("
-                SELECT id, title, slug, content, language, status, meta_title, meta_description, meta_image, created_at, updated_at
-                FROM pages
+                SELECT 
+                    id, website_id, name, slug, theme_type, page_type,
+                    layout_type, header_component, footer_component,
+                    sidebar_enabled, sections, settings, description
+                FROM templates
                 WHERE website_id = ?
-                AND slug = ?
-                AND status = 'published'
-                AND is_deleted = FALSE
+                  AND slug = ?
                 LIMIT 1
             ");
 
-            $stmt->execute([$websiteId, $slug]);
-            $page = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->execute([$websiteId, $page['template']]);
+            $template = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$page) {
-                http_response_code(404);
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Page not found'
-                ]);
-                return;
+            if ($template) {
+                $template['sidebar_enabled'] = (bool) $template['sidebar_enabled'];
+                $template['sections'] = $template['sections']
+                    ? json_decode($template['sections'], true)
+                    : [];
+                $template['settings'] = $template['settings']
+                    ? json_decode($template['settings'], true)
+                    : [];
             }
-
-            echo json_encode([
-                'status' => 'success',
-                'page' => $page
-            ]);
-
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Internal server error'
-            ]);
         }
+
+        // 4. Get theme settings
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                id, website_id, name, version, description,
+                author, is_default, template_type, settings
+            FROM themes
+            WHERE website_id = ?
+              AND is_default = 1
+            LIMIT 1
+        ");
+
+        $stmt->execute([$websiteId]);
+        $theme = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($theme) {
+            $theme['is_default'] = (bool) $theme['is_default'];
+            $theme['settings'] = $theme['settings']
+                ? json_decode($theme['settings'], true)
+                : [];
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'page' => $page,
+            'template' => $template,
+            'theme' => $theme,
+            'website' => $website,
+            'metadata' => [
+                'title' => $page['meta_title'] ?: $page['title'],
+                'description' => $page['meta_description'] ?: ($page['excerpt'] ?? ''),
+                'image' => $page['meta_image'] ?: ($page['image'] ?? null),
+            ]
+        ]);
+
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Internal server error',
+            'details' => $e->getMessage()
+        ]);
     }
+}
 
     /**
      * GET /api/public/website-by-domain?domain=client1.cms

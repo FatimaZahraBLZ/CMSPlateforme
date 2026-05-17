@@ -110,7 +110,7 @@ export const DashboardLayout: React.FC = () => {
   <h2 className="font-bold text-gray-900">
     {platformSettings.platform_name || 'CMS Platform'}
   </h2>
-  <p className="text-xs text-gray-500">Platform</p>
+  <p className="text-xs text-gray-500">Plateforme</p>
 </div>
             </div>
           )}

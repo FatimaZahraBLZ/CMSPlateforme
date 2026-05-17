@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
 import { SubdomainService } from '../../services/SubdomainService';
 import { api } from '../../services/api';
 import { PublicTemplateRenderer } from '../../components/public/PublicTemplateRenderer';
 
-export const PublicPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+interface PublicSlugPageProps {
+  slug: string;
+}
+
+export const PublicSlugPage: React.FC<PublicSlugPageProps> = ({ slug }) => {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +32,7 @@ export const PublicPage: React.FC = () => {
           return;
         }
 
-        const websiteId = websiteResponse.website.id;
-        const currentSlug = slug || 'home';
-
-        const response = await api.getPublicPage(websiteId, currentSlug);
+        const response = await api.getPublicPage(websiteResponse.website.id, slug);
 
         if (response.status === 'success' && response.page) {
           setPageData(response);
@@ -44,25 +43,12 @@ export const PublicPage: React.FC = () => {
             response.page.title ||
             response.website?.name ||
             'Website';
-
-          const metaDescription = document.querySelector('meta[name="description"]');
-          if (metaDescription) {
-            metaDescription.setAttribute(
-              'content',
-              response.metadata?.description || response.page.meta_description || ''
-            );
-          }
-
-          const metaImage = document.querySelector('meta[property="og:image"]');
-          if (metaImage && response.metadata?.image) {
-            metaImage.setAttribute('content', response.metadata.image);
-          }
         } else {
           setError(response.message || 'Page not found');
         }
       } catch (err) {
-        console.error('Error loading public page:', err);
-        setError('Failed to load page');
+        console.error(`Error loading ${slug} page:`, err);
+        setError(`${slug} page not found`);
       } finally {
         setLoading(false);
       }

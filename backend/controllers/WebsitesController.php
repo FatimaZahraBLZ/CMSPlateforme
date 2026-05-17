@@ -169,50 +169,335 @@ class WebsitesController
     }
 
     private function createDefaultContent(string $websiteId, array $websiteData): void
-    {
-        try {
-            error_log("Starting to create default content for website: $websiteId");
-            
-            // Create default pages
-            error_log("Creating default pages for website: $websiteId");
-            $this->createDefaultPages(
+{
+    try {
+        error_log("Starting to create default content for website: $websiteId");
+
+        // 1. Create default theme settings
+        error_log("Creating default theme for website: $websiteId");
+        $this->createDefaultTheme($websiteId, $websiteData);
+        error_log("Default theme created successfully");
+
+        // 2. Create templates before pages
+        error_log("Creating default templates for website: $websiteId");
+        $this->createDefaultTemplates($websiteId, $websiteData['theme']);
+        error_log("Default templates created successfully");
+
+        // 3. Create pages using the selected theme
+        error_log("Creating default pages for website: $websiteId");
+        $this->createDefaultPages(
             $websiteId,
             $websiteData['defaultLanguage'],
-            $websiteData['theme'] ?? 'minimal'
-            );
-            error_log("Default pages created successfully");
+            $websiteData['theme']
+        );
+        error_log("Default pages created successfully");
 
-            // Create default menu
-            error_log("Creating default menu for website: $websiteId");
-            $this->createDefaultMenu(
+        // 4. Create default header/footer menus
+        error_log("Creating default menu for website: $websiteId");
+        $this->createDefaultMenu(
             $websiteId,
             $websiteData['defaultLanguage'],
-            $websiteData['theme'] ?? 'minimal'
-            );
-            error_log("Default menu created successfully");
+            $websiteData['theme']
+        );
+        error_log("Default menu created successfully");
 
-            // Create default settings
-            error_log("Creating default settings for website: $websiteId");
-            $this->createDefaultSettings($websiteId);
-            error_log("Default settings created successfully");
+        // 5. Create website settings
+        error_log("Creating default settings for website: $websiteId");
+        $this->createDefaultSettings($websiteId);
+        error_log("Default settings created successfully");
 
-        } catch (Exception $e) {
-            // Log error but don't fail the website creation
-            error_log('Failed to create default content: ' . $e->getMessage());
-            error_log('Stack trace: ' . $e->getTraceAsString());
-        }
+    } catch (Exception $e) {
+        error_log('Failed to create default content: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
+    }
+}
+
+private function createDefaultTheme(string $websiteId, array $websiteData): void
+{
+    $theme = strtolower($websiteData['theme'] ?? 'minimal');
+
+    $themeSettingsByType = [
+        'minimal' => [
+            'primaryColor' => '#2563eb',
+            'fontFamily' => 'Inter',
+            'layoutStyle' => 'clean',
+            'headerStyle' => 'simple',
+            'buttonStyle' => 'rounded',
+        ],
+        'business' => [
+            'primaryColor' => '#1d4ed8',
+            'fontFamily' => 'Inter',
+            'layoutStyle' => 'professional',
+            'headerStyle' => 'corporate',
+            'buttonStyle' => 'rounded',
+        ],
+        'blog' => [
+            'primaryColor' => '#7c3aed',
+            'fontFamily' => 'Georgia',
+            'layoutStyle' => 'editorial',
+            'headerStyle' => 'magazine',
+            'buttonStyle' => 'pill',
+        ],
+    ];
+
+    if (!isset($themeSettingsByType[$theme])) {
+        $theme = 'minimal';
     }
 
-    private function createDefaultPages(string $websiteId, string $defaultLanguage, string $theme = 'minimal'): void
+    $themeId = $this->generateUuid();
+
+    $stmt = $this->pdo->prepare("
+        INSERT INTO themes (
+            id,
+            website_id,
+            name,
+            version,
+            description,
+            author,
+            is_default,
+            template_type,
+            settings
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $stmt->execute([
+        $themeId,
+        $websiteId,
+        ucfirst($theme) . ' Theme',
+        '1.0.0',
+        'Default ' . $theme . ' theme for this website',
+        'CMS Platform',
+        1,
+        $theme,
+        json_encode($themeSettingsByType[$theme], JSON_UNESCAPED_UNICODE),
+    ]);
+}
+
+    private function createDefaultTemplates(string $websiteId, string $theme): void
+{
+    $theme = strtolower($theme);
+
+    $templatesByTheme = [
+        'minimal' => [
+            [
+                'name' => 'Minimal Home',
+                'slug' => 'minimal-home',
+                'page_type' => 'home',
+                'layout_type' => 'landing-page',
+                'sections' => ['hero', 'content'],
+                'settings' => [
+                    'container' => 'max-w-5xl',
+                    'style' => 'minimal',
+                    'showTitle' => true,
+                ],
+                'description' => 'Homepage template for minimal websites',
+            ],
+            [
+                'name' => 'Minimal About',
+                'slug' => 'minimal-about',
+                'page_type' => 'about',
+                'layout_type' => 'standard-page',
+                'sections' => ['content'],
+                'settings' => [
+                    'container' => 'max-w-4xl',
+                    'style' => 'minimal',
+                    'showTitle' => true,
+                ],
+                'description' => 'About page template for minimal websites',
+            ],
+            [
+                'name' => 'Minimal Contact',
+                'slug' => 'minimal-contact',
+                'page_type' => 'contact',
+                'layout_type' => 'contact-page',
+                'sections' => ['content', 'contact-info'],
+                'settings' => [
+                    'container' => 'max-w-4xl',
+                    'style' => 'minimal',
+                    'showContactInfo' => true,
+                ],
+                'description' => 'Contact page template for minimal websites',
+            ],
+        ],
+
+        'business' => [
+            [
+                'name' => 'Business Home',
+                'slug' => 'business-home',
+                'page_type' => 'home',
+                'layout_type' => 'landing-page',
+                'sections' => ['hero', 'services-preview', 'about-preview', 'projects-preview', 'cta'],
+                'settings' => [
+                    'container' => 'max-w-7xl',
+                    'style' => 'business',
+                    'showHeroButton' => true,
+                ],
+                'description' => 'Homepage template for business websites',
+            ],
+            [
+                'name' => 'Business About',
+                'slug' => 'business-about',
+                'page_type' => 'about',
+                'layout_type' => 'standard-page',
+                'sections' => ['content', 'mission', 'values'],
+                'settings' => [
+                    'container' => 'max-w-6xl',
+                    'style' => 'business',
+                    'showTitle' => true,
+                ],
+                'description' => 'About page template for business websites',
+            ],
+            [
+                'name' => 'Business Services',
+                'slug' => 'business-services',
+                'page_type' => 'services',
+                'layout_type' => 'services-page',
+                'sections' => ['hero', 'services-grid', 'cta'],
+                'settings' => [
+                    'container' => 'max-w-7xl',
+                    'style' => 'business',
+                    'cards' => true,
+                ],
+                'description' => 'Services page template for business websites',
+            ],
+            [
+                'name' => 'Business Projects',
+                'slug' => 'business-projects',
+                'page_type' => 'projects',
+                'layout_type' => 'projects-page',
+                'sections' => ['hero', 'projects-grid', 'cta'],
+                'settings' => [
+                    'container' => 'max-w-7xl',
+                    'style' => 'business',
+                    'cards' => true,
+                ],
+                'description' => 'Projects page template for business websites',
+            ],
+            [
+                'name' => 'Business Contact',
+                'slug' => 'business-contact',
+                'page_type' => 'contact',
+                'layout_type' => 'contact-page',
+                'sections' => ['contact-info', 'contact-form', 'map'],
+                'settings' => [
+                    'container' => 'max-w-6xl',
+                    'style' => 'business',
+                    'showMap' => true,
+                ],
+                'description' => 'Contact page template for business websites',
+            ],
+        ],
+
+        'blog' => [
+            [
+                'name' => 'Blog Home',
+                'slug' => 'blog-home',
+                'page_type' => 'home',
+                'layout_type' => 'blog-home',
+                'sections' => ['hero', 'featured-posts', 'latest-posts'],
+                'settings' => [
+                    'container' => 'max-w-7xl',
+                    'style' => 'blog',
+                    'showFeaturedPosts' => true,
+                ],
+                'description' => 'Homepage template for blog websites',
+            ],
+            [
+                'name' => 'Blog Listing',
+                'slug' => 'blog-list',
+                'page_type' => 'blog',
+                'layout_type' => 'blog-list',
+                'sections' => ['posts-grid', 'categories-sidebar'],
+                'settings' => [
+                    'container' => 'max-w-7xl',
+                    'style' => 'blog',
+                    'sidebar' => true,
+                ],
+                'description' => 'Blog listing page template',
+            ],
+            [
+                'name' => 'Blog Categories',
+                'slug' => 'blog-categories',
+                'page_type' => 'categories',
+                'layout_type' => 'categories-page',
+                'sections' => ['categories-grid'],
+                'settings' => [
+                    'container' => 'max-w-6xl',
+                    'style' => 'blog',
+                    'cards' => true,
+                ],
+                'description' => 'Categories page template for blog websites',
+            ],
+            [
+                'name' => 'Blog About',
+                'slug' => 'blog-about',
+                'page_type' => 'about',
+                'layout_type' => 'standard-page',
+                'sections' => ['content', 'author-box'],
+                'settings' => [
+                    'container' => 'max-w-4xl',
+                    'style' => 'blog',
+                    'showTitle' => true,
+                ],
+                'description' => 'About page template for blog websites',
+            ],
+            [
+                'name' => 'Blog Contact',
+                'slug' => 'blog-contact',
+                'page_type' => 'contact',
+                'layout_type' => 'contact-page',
+                'sections' => ['content', 'contact-info'],
+                'settings' => [
+                    'container' => 'max-w-4xl',
+                    'style' => 'blog',
+                    'showContactInfo' => true,
+                ],
+                'description' => 'Contact page template for blog websites',
+            ],
+        ],
+    ];
+
+    if (!isset($templatesByTheme[$theme])) {
+        $theme = 'minimal';
+    }
+
+    foreach ($templatesByTheme[$theme] as $template) {
+        $this->websiteModel->createTemplate(
+            $websiteId,
+            $template['name'],
+            $template['slug'],
+            $theme,
+            $template['page_type'],
+            $template['layout_type'],
+            $template['sections'],
+            $template['settings'],
+            $template['description']
+        );
+    }
+}
+
+private function generateUuid(): string
+{
+    $data = random_bytes(16);
+    $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+    $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
+    private function createDefaultPages(string $websiteId, string $defaultLanguage, string $theme): void
 {
     $defaultPages = $this->getDefaultPagesByTheme($theme, $defaultLanguage);
 
-    error_log("Creating " . count($defaultPages) . " default pages for website: $websiteId, theme: $theme");
+    error_log("Creating " . count($defaultPages) . " default pages for website: $websiteId");
 
     foreach ($defaultPages as $index => $page) {
         try {
-            error_log("Creating page $index: " . $page['slug']);
+            error_log("Creating page $index: " . $page['slug'] . " with template: " . $page['template']);
+
             $this->websiteModel->createDefaultPage($websiteId, $page);
+
             error_log("Successfully created page: " . $page['slug']);
         } catch (Exception $e) {
             error_log("Error creating page " . $page['slug'] . ": " . $e->getMessage());
@@ -230,6 +515,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Home',
                 'slug' => 'home',
+                'template' => 'minimal-home',
                 'content' => '<h1>Welcome</h1><p>This is a simple and clean website.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -238,6 +524,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'About',
                 'slug' => 'about',
+                'template' => 'minimal-about',
                 'content' => '<h1>About</h1><p>Introduce yourself or your project here.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -246,6 +533,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Contact',
                 'slug' => 'contact',
+                'template' => 'minimal-contact',
                 'content' => '<h1>Contact</h1><p>Add your contact information here.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -257,6 +545,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Home',
                 'slug' => 'home',
+                'template' => 'business-home',
                 'content' => '<h1>Welcome to Our Business</h1><p>Professional solutions for your needs.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -265,6 +554,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'About Us',
                 'slug' => 'about',
+                'template' => 'business-about',
                 'content' => '<h1>About Us</h1><p>Learn more about our company, mission, and values.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -273,6 +563,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Services',
                 'slug' => 'services',
+                'template' => 'business-services',
                 'content' => '<h1>Our Services</h1><p>Present your main services here.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -281,6 +572,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Projects',
                 'slug' => 'projects',
+                'template' => 'business-projects',
                 'content' => '<h1>Our Projects</h1><p>Showcase your previous work and achievements.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -289,6 +581,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Contact',
                 'slug' => 'contact',
+                'template' => 'business-contact',
                 'content' => '<h1>Contact Us</h1><p>Get in touch with our team.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -300,6 +593,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Home',
                 'slug' => 'home',
+                'template' => 'blog-home',
                 'content' => '<h1>Welcome to the Blog</h1><p>Read our latest stories, updates, and articles.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -308,6 +602,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Blog',
                 'slug' => 'blog',
+                'template' => 'blog-list',
                 'content' => '<h1>Blog</h1><p>Browse all articles and updates here.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -316,6 +611,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Categories',
                 'slug' => 'categories',
+                'template' => 'blog-categories',
                 'content' => '<h1>Categories</h1><p>Explore articles by category.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -324,6 +620,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'About',
                 'slug' => 'about',
+                'template' => 'blog-about',
                 'content' => '<h1>About This Blog</h1><p>Tell readers about the purpose of this blog.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -332,6 +629,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
             [
                 'title' => 'Contact',
                 'slug' => 'contact',
+                'template' => 'blog-contact',
                 'content' => '<h1>Contact</h1><p>Contact the blog author or editorial team.</p>',
                 'language' => $language,
                 'status' => 'published',
@@ -343,7 +641,7 @@ private function getDefaultPagesByTheme(string $theme, string $language): array
     return $pagesByTheme[$theme] ?? $pagesByTheme['minimal'];
 }
 
-    private function createDefaultMenu(string $websiteId, string $defaultLanguage, string $theme = 'minimal'): void
+    private function createDefaultMenu(string $websiteId, string $defaultLanguage, string $theme): void
 {
     $pages = $this->getDefaultPagesByTheme($theme, $defaultLanguage);
 
