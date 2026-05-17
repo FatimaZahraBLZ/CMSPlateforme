@@ -758,20 +758,70 @@ async getWebsites() {
 
   async revokeWebsiteAccess(websiteId: string, userId: string) {
     try {
-      const res = await fetch(`${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access/${encodeURIComponent(userId)}`, {
-        method: 'DELETE',
-        headers: this.getAuthHeaders(),
-      });
+      const res = await fetch(
+        `${this.baseUrl}/api/websites/${encodeURIComponent(websiteId)}/access/${encodeURIComponent(userId)}`,
+        {
+          method: 'DELETE',
+          headers: this.getAuthHeaders(),
+        }
+      );
+
       const data = await res.json();
+
       if (!res.ok) {
         throw new Error(data?.message || 'Failed to revoke access');
       }
+
       return data;
     } catch (error) {
       console.error('Revoke website access error:', error);
       throw error;
     }
   }
+
+  async getPublicPlatformSettings() {
+  const res = await fetch(`${this.baseUrl}/api/public/platform-settings`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to fetch public platform settings');
+  }
+
+  return data.settings || {};
 }
 
+  async getPlatformSettings() {
+    const res = await fetch(`${this.baseUrl}/api/platform-settings`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to fetch platform settings');
+    }
+
+    return data.settings;
+  }
+
+  async updatePlatformSettings(settings: any) {
+    const res = await fetch(`${this.baseUrl}/api/platform-settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({ settings }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to update platform settings');
+    }
+
+    return data;
+  }
+};
 export const api = new ApiService();
+

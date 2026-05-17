@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Alert } from '../../components/ui/Alert';
 import { Logo } from '../../components/Logo';
+import { usePlatformSettings } from '../../hooks/usePlatformSettings';
 import {
   Mail,
   Lock,
@@ -25,6 +26,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const platformSettings = usePlatformSettings();
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -63,10 +65,18 @@ const handleSubmit = async (e: React.FormEvent) => {
           <div className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 overflow-hidden">
-                <Logo className="w-10 h-10" alt="CMS platform logo" />
+                {platformSettings.platform_logo ? (
+  <img
+    src={platformSettings.platform_logo}
+    alt={platformSettings.platform_name || 'Platform logo'}
+    className="w-10 h-10 object-contain"
+  />
+) : (
+  <Logo className="w-10 h-10" alt="CMS platform logo" />
+)}
               </div>
               <div>
-                <h1 className="text-2xl font-bold">CMS Platform</h1>
+                <h1 className="text-2xl font-bold">{platformSettings.platform_name || 'CMS Platform'}</h1>
                 <p className="text-sm text-blue-200">Content Management System</p>
               </div>
             </div>
@@ -147,9 +157,17 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-3 overflow-hidden">
-              <Logo className="w-10 h-10" alt="CMS platform logo" />
+              {platformSettings.platform_logo ? (
+  <img
+    src={platformSettings.platform_logo}
+    alt={platformSettings.platform_name || 'Platform logo'}
+    className="w-10 h-10 object-contain"
+  />
+) : (
+  <Logo className="w-10 h-10" alt="CMS platform logo" />
+)}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">CMS Platform</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{platformSettings.platform_name || 'CMS Platform'}</h1>
           </div>
 
           {/* Login Card */}

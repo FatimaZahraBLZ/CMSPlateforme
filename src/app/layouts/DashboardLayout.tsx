@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation, Navigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useCMS } from '../contexts/CMSContext';
 import { Badge } from '../components/ui/Badge';
 import { Logo } from '../components/Logo';
+import { usePlatformSettings } from '../hooks/usePlatformSettings';
 import {
   Aperture,
   LayoutDashboard,
@@ -34,6 +35,8 @@ export const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const websiteId = selectedWebsite?.id;
+  const platformSettings = usePlatformSettings();
+  
 
   const handleLogout = () => {
     logout();
@@ -70,6 +73,8 @@ export const DashboardLayout: React.FC = () => {
     visitor: 'bg-gray-100 text-gray-800',
   };
 
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -89,13 +94,24 @@ export const DashboardLayout: React.FC = () => {
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           {sidebarOpen && (
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                <Logo className="w-10 h-10" alt="CMS logo" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-900">CMS</h2>
-                <p className="text-xs text-gray-500">Platform</p>
-              </div>
+              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center overflow-hidden">
+  {platformSettings.platform_logo ? (
+    <img
+      src={platformSettings.platform_logo}
+      alt={platformSettings.platform_name || 'Platform logo'}
+      className="w-10 h-10 object-contain"
+    />
+  ) : (
+    <Logo className="w-10 h-10" alt="CMS logo" />
+  )}
+</div>
+
+<div>
+  <h2 className="font-bold text-gray-900">
+    {platformSettings.platform_name || 'CMS Platform'}
+  </h2>
+  <p className="text-xs text-gray-500">Platform</p>
+</div>
             </div>
           )}
           <button

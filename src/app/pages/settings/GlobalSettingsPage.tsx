@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -6,27 +6,105 @@ import { Select } from '../../components/ui/Select';
 import { Textarea } from '../../components/ui/Textarea';
 import { Alert } from '../../components/ui/Alert';
 import { Settings, Globe, Shield, Upload, Database } from 'lucide-react';
+import { api } from '../../services/api';
 
 export const GlobalSettingsPage: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
-  const [settings, setSettings] = useState({
-    platformName: 'CMS Platform',
-    platformUrl: 'https://cms-platform.com',
-    defaultLanguage: 'en',
-    timezone: 'UTC',
-    dateFormat: 'YYYY-MM-DD',
-    maxUploadSize: '50',
-    allowedFileTypes: 'jpg, png, gif, pdf, mp4',
-    sessionTimeout: '30',
-    enableRegistration: false,
-    requireEmailVerification: true,
-    enableTwoFactor: false,
-  });
+  const [loading, setLoading] = useState(true);
+const [saving, setSaving] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const logoInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const handleSave = () => {
+const [settings, setSettings] = useState({
+  platformName: 'CMS Platform',
+  platformUrl: 'https://cms-platform.com',
+  platformLogo: '',
+  defaultLanguage: 'en',
+  timezone: 'UTC',
+  dateFormat: 'YYYY-MM-DD',
+  maxUploadSize: '50',
+  allowedFileTypes: 'jpg, png, gif, pdf, mp4',
+  sessionTimeout: '30',
+  enableRegistration: false,
+  requireEmailVerification: true,
+  enableTwoFactor: false,
+});
+
+const handleSave = async () => {
+  try {
+    setSaving(true);
+    setError(null);
+
+    await api.updatePlatformSettings({
+  platform_name: settings.platformName,
+  platform_url: settings.platformUrl,
+  platform_logo: settings.platformLogo,
+  default_language: settings.defaultLanguage,
+  timezone: settings.timezone,
+  date_format: settings.dateFormat,
+  max_upload_size: Number(settings.maxUploadSize),
+  allowed_file_types: settings.allowedFileTypes,
+  session_timeout: Number(settings.sessionTimeout),
+  enable_registration: settings.enableRegistration,
+  require_email_verification: settings.requireEmailVerification,
+  enable_two_factor: settings.enableTwoFactor,
+});
+
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to save settings');
+  } finally {
+    setSaving(false);
+  }
+};
+
+const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onloadend = () => {
+    setSettings((prev: any) => ({
+      ...prev,
+      platformLogo: reader.result as string,
+    }));
   };
+
+  reader.readAsDataURL(file);
+};
+
+useEffect(() => {
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getPlatformSettings();
+
+      setSettings({
+  platformName: data.platform_name || 'CMS Platform',
+  platformUrl: data.platform_url || 'http://localhost:5173',
+  platformLogo: data.platform_logo || '',
+  defaultLanguage: data.default_language || 'en',
+  timezone: data.timezone || 'UTC',
+  dateFormat: data.date_format || 'YYYY-MM-DD',
+  maxUploadSize: String(data.max_upload_size || 50),
+  allowedFileTypes: data.allowed_file_types || 'jpg,png,gif,pdf,mp4',
+  sessionTimeout: String(data.session_timeout || 30),
+  enableRegistration: Boolean(data.enable_registration),
+  requireEmailVerification: Boolean(data.require_email_verification),
+  enableTwoFactor: Boolean(data.enable_two_factor),
+}); 
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchSettings();
+}, []);
 
   return (
     <div className="space-y-8">
@@ -65,16 +143,36 @@ export const GlobalSettingsPage: React.FC = () => {
               placeholder="https://cms-platform.com"
             />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Platform Logo
-              </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</p>
-                <p className="text-xs text-gray-500">SVG, PNG, JPG (max. 2MB)</p>
-              </div>
-            </div>
+            <input
+  ref={logoInputRef}
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={handleLogoUpload}
+/>
+
+<button
+  type="button"
+  onClick={() => logoInputRef.current?.click()}
+  className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition"
+>
+  <p className="text-sm font-medium text-gray-700">
+    Click to upload or drag and drop
+  </p>
+  <p className="text-xs text-gray-500 mt-1">
+    PNG, JPG, SVG recommended
+  </p>
+</button>
+{settings.platformLogo && (
+  <div className="mt-4 flex items-center gap-3">
+    <img
+      src={settings.platformLogo}
+      alt="Platform logo preview"
+      className="w-16 h-16 rounded-lg border object-contain bg-white"
+    />
+    <p className="text-sm text-gray-600">Logo selected. Click Save to store it.</p>
+  </div>
+)}
           </div>
         </CardContent>
       </Card>
@@ -226,8 +324,8 @@ export const GlobalSettingsPage: React.FC = () => {
       {/* Save Button */}
       <div className="flex justify-end gap-4">
         <Button variant="ghost">Reset to Defaults</Button>
-        <Button variant="primary" onClick={handleSave}>
-          Save Global Settings
+        <Button variant="primary" onClick={handleSave} disabled={saving}>
+           {saving ? 'Saving...' : 'Save Global Settings'}
         </Button>
       </div>
     </div>
