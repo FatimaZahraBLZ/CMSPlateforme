@@ -897,6 +897,20 @@ async updateSiteSettings(settings: any) {
   return data;
 }
 
+async getPublicTheme(websiteId: string) {
+  const res = await fetch(
+    `${this.baseUrl}/api/public/theme?website_id=${encodeURIComponent(websiteId)}`
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to fetch public theme');
+  }
+
+  return data.theme;
+}
+
 async getPublicSiteSettings(websiteId: string) {
   const res = await fetch(
     `${this.baseUrl}/api/public/site-settings?website_id=${encodeURIComponent(websiteId)}`

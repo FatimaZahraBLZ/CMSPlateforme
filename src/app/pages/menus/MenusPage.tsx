@@ -75,7 +75,7 @@ export const MenusPage: React.FC = () => {
     button_page_id: '',
     button_link: '',
     button_phone: '',
-    button_color: 'primary',
+    button_color: '#1d4ed8',
   });
 
   // Fetch menus and pages when website or language changes
@@ -263,7 +263,7 @@ export const MenusPage: React.FC = () => {
         button_page_id: '',
         button_link: '',
         button_phone: '',
-        button_color: 'primary',
+        button_color: '#1d4ed8',
       });
     }
   }, [menuType, menus, currentLanguage, selectedWebsite]);
@@ -984,21 +984,39 @@ export const MenusPage: React.FC = () => {
                           />
                         )}
 
-                        <Select
-                          label="Button Style"
-                          value={buttonData.button_color || 'primary'}
-                          onChange={(e) =>
-                            setButtonData({ ...buttonData, button_color: e.target.value })
-                          }
-                          options={[
-                            { value: 'primary', label: 'Primary (Blue)' },
-                            { value: 'secondary', label: 'Secondary (Gray)' },
-                            { value: 'success', label: 'Success (Green)' },
-                            { value: 'danger', label: 'Danger (Red)' },
-                            { value: 'warning', label: 'Warning (Orange)' },
-                          ]}
-                          disabled={loading}
-                        />
+                        <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Button Color
+  </label>
+
+  <div className="flex items-center gap-3">
+    <input
+      type="color"
+      value={buttonData.button_color || '#1d4ed8'}
+      onChange={(e) =>
+        setButtonData({
+          ...buttonData,
+          button_color: e.target.value,
+        })
+      }
+      disabled={loading}
+      className="w-14 h-11 rounded-lg cursor-pointer border border-gray-300"
+    />
+
+    <Input
+      value={buttonData.button_color || '#1d4ed8'}
+      onChange={(e) =>
+        setButtonData({
+          ...buttonData,
+          button_color: e.target.value,
+        })
+      }
+      disabled={loading}
+      placeholder="#1d4ed8"
+      className="flex-1"
+    />
+  </div>
+</div>
                       </>
                     )}
 
@@ -1032,7 +1050,14 @@ export const MenusPage: React.FC = () => {
                               ? `URL: ${buttonData.button_link}`
                               : `Phone: ${buttonData.button_phone}`}
                           </p>
-                          <p className="text-sm text-blue-700">Style: {buttonData.button_color}</p>
+                          <div className="flex items-center gap-2 text-sm text-blue-700">
+  <span>Color:</span>
+  <span
+    className="w-5 h-5 rounded border border-gray-300 inline-block"
+    style={{ backgroundColor: buttonData.button_color || '#1d4ed8' }}
+  />
+  <span>{buttonData.button_color}</span>
+</div>
                         </div>
                         <button
                           onClick={() => setEditingButton(true)}

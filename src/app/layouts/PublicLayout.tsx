@@ -48,6 +48,7 @@ export const PublicLayout: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>('en');
   const [siteSettings, setSiteSettings] = useState<any>(null);
+  const [themeSettings, setThemeSettings] = useState<any>(null);
 
   useEffect(() => {
     const loadWebsite = async () => {
@@ -104,6 +105,21 @@ export const PublicLayout: React.FC = () => {
   };
 
   fetchSiteSettings();
+}, [website]);
+
+useEffect(() => {
+  if (!website) return;
+
+  const loadTheme = async () => {
+    try {
+      const theme = await api.getPublicTheme(website.id);
+      setThemeSettings(theme?.settings || {});
+    } catch (err) {
+      console.error('Failed to load theme:', err);
+    }
+  };
+
+  loadTheme();
 }, [website]);
 
   // Fetch menus when website is loaded
@@ -179,17 +195,7 @@ export const PublicLayout: React.FC = () => {
     return '#';
   };
 
-  // Helper to get button color classes
-  const getButtonColorClasses = (): string => {
-    const colorMap: Record<string, string> = {
-      'primary': 'bg-blue-600 hover:bg-blue-700',
-      'secondary': 'bg-gray-600 hover:bg-gray-700',
-      'success': 'bg-green-600 hover:bg-green-700',
-      'danger': 'bg-red-600 hover:bg-red-700',
-      'warning': 'bg-yellow-600 hover:bg-yellow-700',
-    };
-    return colorMap[headerMenu?.button_color || 'primary'] || 'bg-blue-600 hover:bg-blue-700';
-  };
+
 
   if (loading) {
     return (
@@ -219,17 +225,38 @@ export const PublicLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Public Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header
+  className={`border-b ${
+    themeSettings?.header?.sticky
+      ? 'sticky top-0 z-50'
+      : ''
+  }`}
+  style={{
+    backgroundColor:
+      themeSettings?.header?.backgroundColor || '#ffffff',
+
+    color:
+      themeSettings?.header?.textColor || '#111827',
+
+    borderColor:
+      themeSettings?.secondaryColor || '#e5e7eb',
+  }}
+>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              {siteSettings?.logo ? (
+              {themeSettings?.header?.showLogo !== false && (
+  siteSettings?.logo ? (
   <img src={siteSettings.logo} alt={siteSettings.site_name} className="w-10 h-10 object-contain" />
 ) : (
   <Logo className="w-10 h-10" alt="Logo" />
+)
 )}
 
-<span className="text-xl font-bold text-gray-900">
+<span
+  className="text-xl font-bold"
+  style={{ color: themeSettings?.header?.textColor || '#111827' }}
+>
   {siteSettings?.site_name || website.name}
 </span>
             </div>
@@ -243,7 +270,10 @@ export const PublicLayout: React.FC = () => {
     <Link
       key={item.id}
       to={url}
-      className="text-gray-700 hover:text-blue-600 transition-colors"
+      className="transition-colors"
+style={{
+  color: themeSettings?.header?.textColor || '#111827'
+}}
     >
       {item.label}
     </Link>
@@ -252,13 +282,21 @@ export const PublicLayout: React.FC = () => {
             </nav>
 
             {/* Dynamic Button from Menu Configuration */}
-            {headerMenu?.has_button && headerMenu.button_label ? (
+            {themeSettings?.header?.showButton !== false &&
+ headerMenu?.has_button &&
+ headerMenu.button_label ? (
               <Link
-                to={getButtonUrl()}
-                className={`text-white px-6 py-2 rounded-lg transition-colors ${getButtonColorClasses()}`}
-              >
-                {headerMenu.button_label}
-              </Link>
+  to={getButtonUrl()}
+  className="text-white px-6 py-2 rounded-lg transition-colors"
+  style={{
+    backgroundColor:
+      headerMenu.button_color ||
+      themeSettings?.primaryColor ||
+      '#1d4ed8',
+  }}
+>
+  {headerMenu.button_label}
+</Link>
             ) : null}
           </div>
         </div>
@@ -268,15 +306,31 @@ export const PublicLayout: React.FC = () => {
       <Outlet context={{ website }} />
 
       {/* Public Footer */}
-      <footer className="bg-gray-900 text-white mt-20">
+      <footer
+  className="mt-20"
+  style={{
+    backgroundColor:
+      themeSettings?.footer?.backgroundColor || '#111827',
+
+    color:
+      themeSettings?.footer?.textColor || '#ffffff',
+  }}
+>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div
+  className="grid gap-8"
+  style={{
+    gridTemplateColumns: `repeat(${themeSettings?.footer?.columns || 4}, minmax(0, 1fr))`,
+  }}
+>
             <div>
               <div className="flex items-center gap-2 mb-4">
-                {siteSettings?.logo ? (
+                {themeSettings?.footer?.showLogo !== false && (
+  siteSettings?.logo ? (
   <img src={siteSettings.logo} alt={siteSettings.site_name} className="w-10 h-10 object-contain" />
 ) : (
   <Logo className="w-10 h-10" alt="Logo" />
+)
 )}
 
 <span className="text-xl font-bold">
@@ -288,6 +342,14 @@ export const PublicLayout: React.FC = () => {
                 Building amazing digital experiences for modern businesses.
               </p>
             </div>
+
+            {themeSettings?.footer?.showContactInfo !== false && (
+  <div className="space-y-2 text-sm mt-4">
+    {siteSettings?.email && <p>{siteSettings.email}</p>}
+    {siteSettings?.phone && <p>{siteSettings.phone}</p>}
+    {siteSettings?.address && <p>{siteSettings.address}</p>}
+  </div>
+)}
 
             {footerMenus.flatMap((menu) => {
               const groupedItems = groupFooterItems(menu.items || []);

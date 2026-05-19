@@ -152,6 +152,47 @@ class ThemeController
         return null;
     }
 
+    public function getPublicTheme(): void
+{
+    $websiteId = $_GET['website_id'] ?? null;
+
+    if (!$websiteId) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'website_id is required']);
+        return;
+    }
+
+    $themes = $this->themeModel->getThemesForWebsite($websiteId);
+    $theme = null;
+
+    foreach ($themes as $item) {
+        if ((int)$item['is_default'] === 1) {
+            $theme = $item;
+            break;
+        }
+    }
+
+    if (!$theme && count($themes) > 0) {
+        $theme = $themes[0];
+    }
+
+    if (!$theme) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Theme not found']);
+        return;
+    }
+
+    $theme['is_default'] = (bool)$theme['is_default'];
+    $theme['settings'] = !empty($theme['settings'])
+        ? json_decode($theme['settings'], true)
+        : [];
+
+    echo json_encode([
+        'status' => 'success',
+        'theme' => $theme
+    ]);
+}
+
     private function respondBadRequest(string $message): void
     {
         http_response_code(400);

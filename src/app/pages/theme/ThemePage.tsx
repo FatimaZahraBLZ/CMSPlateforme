@@ -12,10 +12,29 @@ interface ThemeSettingsState {
   accentColor: string;
   textColor: string;
   backgroundColor: string;
+
   fontFamily: string;
   buttonStyle: string;
   layoutStyle: string;
   headerStyle: string;
+
+  header: {
+    backgroundColor: string;
+    textColor: string;
+    sticky: boolean;
+    showLogo: boolean;
+    showButton: boolean;
+    layout: string;
+  };
+
+  footer: {
+    backgroundColor: string;
+    textColor: string;
+    showLogo: boolean;
+    showSocialLinks: boolean;
+    showContactInfo: boolean;
+    columns: number;
+  };
 }
 
 const defaultSettings: ThemeSettingsState = {
@@ -24,10 +43,29 @@ const defaultSettings: ThemeSettingsState = {
   accentColor: '#F59E0B',
   textColor: '#1F2937',
   backgroundColor: '#FFFFFF',
+
   fontFamily: 'Inter',
   buttonStyle: 'rounded',
   layoutStyle: 'professional',
   headerStyle: 'corporate',
+
+  header: {
+    backgroundColor: '#ffffff',
+    textColor: '#111827',
+    sticky: true,
+    showLogo: true,
+    showButton: true,
+    layout: 'centered',
+  },
+
+  footer: {
+    backgroundColor: '#111827',
+    textColor: '#ffffff',
+    showLogo: true,
+    showSocialLinks: true,
+    showContactInfo: true,
+    columns: 4,
+  },
 };
 
 export const ThemePage: React.FC = () => {
@@ -79,6 +117,26 @@ export const ThemePage: React.FC = () => {
       [key]: value,
     }));
   };
+
+  const updateHeaderField = (key: string, value: any) => {
+  setTheme((prev) => ({
+    ...prev,
+    header: {
+      ...prev.header,
+      [key]: value,
+    },
+  }));
+};
+
+const updateFooterField = (key: string, value: any) => {
+  setTheme((prev) => ({
+    ...prev,
+    footer: {
+      ...prev.footer,
+      [key]: value,
+    },
+  }));
+};
 
   const handleSave = async () => {
     if (!selectedWebsite || !themeId) return;
@@ -274,6 +332,194 @@ export const ThemePage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+          <Card>
+  <CardHeader>
+    <CardTitle>Header Appearance</CardTitle>
+  </CardHeader>
+
+  <CardContent>
+    <div className="space-y-6">
+
+      <div className="grid grid-cols-2 gap-6">
+
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Header Background
+          </label>
+
+          <input
+            type="color"
+            value={theme.header.backgroundColor}
+            onChange={(e) =>
+              updateHeaderField('backgroundColor', e.target.value)
+            }
+            className="w-full h-12 rounded-lg cursor-pointer"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Header Text Color
+          </label>
+
+          <input
+            type="color"
+            value={theme.header.textColor}
+            onChange={(e) =>
+              updateHeaderField('textColor', e.target.value)
+            }
+            className="w-full h-12 rounded-lg cursor-pointer"
+          />
+        </div>
+
+      </div>
+
+      <Select
+        label="Header Layout"
+        value={theme.header.layout}
+        onChange={(e) =>
+          updateHeaderField('layout', e.target.value)
+        }
+        options={[
+          { value: 'centered', label: 'Centered' },
+          { value: 'split', label: 'Split' },
+          { value: 'minimal', label: 'Minimal' },
+        ]}
+      />
+
+      <div className="space-y-3">
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.header.sticky}
+            onChange={(e) =>
+              updateHeaderField('sticky', e.target.checked)
+            }
+          />
+          <span>Sticky Header</span>
+        </label>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.header.showLogo}
+            onChange={(e) =>
+              updateHeaderField('showLogo', e.target.checked)
+            }
+          />
+          <span>Show Logo</span>
+        </label>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.header.showButton}
+            onChange={(e) =>
+              updateHeaderField('showButton', e.target.checked)
+            }
+          />
+          <span>Show CTA Button</span>
+        </label>
+
+      </div>
+    </div>
+  </CardContent>
+</Card>
+<Card>
+  <CardHeader>
+    <CardTitle>Footer Appearance</CardTitle>
+  </CardHeader>
+
+  <CardContent>
+    <div className="space-y-6">
+
+      <div className="grid grid-cols-2 gap-6">
+
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Footer Background
+          </label>
+
+          <input
+            type="color"
+            value={theme.footer.backgroundColor}
+            onChange={(e) =>
+              updateFooterField('backgroundColor', e.target.value)
+            }
+            className="w-full h-12 rounded-lg cursor-pointer"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Footer Text Color
+          </label>
+
+          <input
+            type="color"
+            value={theme.footer.textColor}
+            onChange={(e) =>
+              updateFooterField('textColor', e.target.value)
+            }
+            className="w-full h-12 rounded-lg cursor-pointer"
+          />
+        </div>
+
+      </div>
+
+      <Select
+        label="Footer Columns"
+        value={String(theme.footer.columns)}
+        onChange={(e) =>
+          updateFooterField('columns', Number(e.target.value))
+        }
+        options={[
+          { value: '2', label: '2 Columns' },
+          { value: '3', label: '3 Columns' },
+          { value: '4', label: '4 Columns' },
+        ]}
+      />
+
+      <div className="space-y-3">
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.footer.showLogo}
+            onChange={(e) =>
+              updateFooterField('showLogo', e.target.checked)
+            }
+          />
+          <span>Show Logo</span>
+        </label>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.footer.showSocialLinks}
+            onChange={(e) =>
+              updateFooterField('showSocialLinks', e.target.checked)
+            }
+          />
+          <span>Show Social Links</span>
+        </label>
+
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={theme.footer.showContactInfo}
+            onChange={(e) =>
+              updateFooterField('showContactInfo', e.target.checked)
+            }
+          />
+          <span>Show Contact Info</span>
+        </label>
+
+      </div>
+    </div>
+  </CardContent>
+</Card>
         </div>
 
         <div>

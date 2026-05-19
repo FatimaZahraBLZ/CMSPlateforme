@@ -117,6 +117,12 @@ if ($path === '/api/site-settings' && $method === 'PUT') {
     exit;
 }
 
+if ($path === '/api/public/theme' && $method === 'GET') {
+    $controller = new ThemeController($pdo);
+    $controller->getPublicTheme();
+    exit;
+}
+
 if ($path === '/api/public/site-settings' && $method === 'GET') {
     $controller = new SiteSettingsController($pdo);
     $controller->publicSettings();
