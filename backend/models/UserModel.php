@@ -137,8 +137,13 @@ class UserModel
     }
 
     public function deleteUser(string $userId): bool
-    {
-        $stmt = $this->pdo->prepare('DELETE FROM users WHERE id = ?');
-        return $stmt->execute([$userId]);
-    }
+{
+    $stmt = $this->pdo->prepare("
+        UPDATE users
+        SET status = 'inactive', updated_at = NOW()
+        WHERE id = ?
+    ");
+
+    return $stmt->execute([$userId]);
+}
 }
