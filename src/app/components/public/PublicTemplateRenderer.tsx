@@ -17,6 +17,13 @@ export const PublicTemplateRenderer: React.FC<PublicTemplateRendererProps> = ({
   const website = pageData?.website;
   const sections = pageData?.sections || [];
 
+  const settings = theme?.settings || {};
+
+  const backgroundColor = settings.backgroundColor || '#f9fafb';
+  const textColor = settings.textColor || '#111827';
+  const fontFamily = settings.fontFamily || 'Inter';
+  const secondaryColor = settings.secondaryColor || '#10B981';
+
   const renderSection = (section: any) => {
     switch (section.section_type) {
       case 'hero':
@@ -38,20 +45,26 @@ export const PublicTemplateRenderer: React.FC<PublicTemplateRendererProps> = ({
       case 'posts':
       case 'categories':
       default:
-        return <ContentSection key={section.id} section={section} />;
+        return <ContentSection key={section.id} section={section} theme={theme} />;
     }
   };
 
-  if (!page) {
-    return null;
-  }
+  if (!page) return null;
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
+    <main
+      className="min-h-screen"
+      style={{
+        backgroundColor,
+        color: textColor,
+        fontFamily,
+      }}
+    >
       {sections.length > 0 ? (
         sections.map(renderSection)
       ) : (
         <ContentSection
+          theme={theme}
           section={{
             id: page.id,
             title: page.title,
@@ -60,7 +73,14 @@ export const PublicTemplateRenderer: React.FC<PublicTemplateRendererProps> = ({
         />
       )}
 
-      <footer className="border-t border-gray-200 bg-white py-8 text-center text-sm text-gray-500">
+      <footer
+        className="border-t py-8 text-center text-sm"
+        style={{
+          backgroundColor,
+          color: textColor,
+          borderColor: secondaryColor,
+        }}
+      >
         <p>&copy; {new Date().getFullYear()} {website?.name}. All rights reserved.</p>
       </footer>
     </main>

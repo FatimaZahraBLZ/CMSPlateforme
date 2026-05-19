@@ -58,6 +58,7 @@ require_once __DIR__ . '/controllers/PublicController.php';
 require_once __DIR__ . '/controllers/DashboardController.php';
 require_once __DIR__ . '/controllers/ActivityLogsController.php';
 require_once __DIR__ . '/controllers/PlatformSettingsController.php';
+require_once __DIR__ . '/controllers/ThemeController.php';
 
 
 $pdo = getPDO();
@@ -144,6 +145,22 @@ if (preg_match('#^/api/websites/([^/]+)$#', $path, $matches)) {
 
     if ($method === 'DELETE') {
         $controller->delete($websiteId);
+        exit;
+    }
+}
+
+if ($path === '/api/themes/default' && $method === 'GET') {
+    $controller = new ThemeController($pdo);
+    $controller->getTheme();
+    exit;
+}
+
+if (preg_match('#^/api/themes/([^/]+)$#', $path, $matches)) {
+    $themeId = $matches[1];
+    $controller = new ThemeController($pdo);
+
+    if ($method === 'PUT') {
+        $controller->updateTheme($themeId);
         exit;
     }
 }

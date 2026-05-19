@@ -1,22 +1,109 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { useCMS } from '../../contexts/CMSContext';
+import { api } from '../../services/api';
+
+interface ThemeSettingsState {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  textColor: string;
+  backgroundColor: string;
+  fontFamily: string;
+  buttonStyle: string;
+  layoutStyle: string;
+  headerStyle: string;
+}
+
+const defaultSettings: ThemeSettingsState = {
+  primaryColor: '#1d4ed8',
+  secondaryColor: '#10B981',
+  accentColor: '#F59E0B',
+  textColor: '#1F2937',
+  backgroundColor: '#FFFFFF',
+  fontFamily: 'Inter',
+  buttonStyle: 'rounded',
+  layoutStyle: 'professional',
+  headerStyle: 'corporate',
+};
 
 export const ThemePage: React.FC = () => {
   const { selectedWebsite } = useCMS();
-  const [theme, setTheme] = useState({
-    primaryColor: '#3B82F6',
-    secondaryColor: '#10B981',
-    accentColor: '#F59E0B',
-    textColor: '#1F2937',
-    backgroundColor: '#FFFFFF',
-    fontFamily: 'Inter',
-    buttonStyle: 'rounded',
-    layoutStyle: 'boxed',
-  });
+
+  const [themeId, setThemeId] = useState<string | null>(null);
+  const [themeName, setThemeName] = useState('');
+  const [themeDescription, setThemeDescription] = useState('');
+  const [theme, setTheme] = useState<ThemeSettingsState>(defaultSettings);
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTheme = async () => {
+    if (!selectedWebsite) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      setMessage(null);
+
+      const data = await api.getDefaultTheme(selectedWebsite.id);
+
+      setThemeId(data.id);
+      setThemeName(data.name || '');
+      setThemeDescription(data.description || '');
+
+      setTheme({
+        ...defaultSettings,
+        ...(data.settings || {}),
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load theme';
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTheme();
+  }, [selectedWebsite?.id]);
+
+  const updateField = (key: keyof ThemeSettingsState, value: string) => {
+    setTheme((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!selectedWebsite || !themeId) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
+
+      await api.updateTheme(
+        themeId,
+        selectedWebsite.id,
+        theme,
+        themeName,
+        themeDescription
+      );
+
+      setMessage('Theme saved successfully.');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save theme';
+      setError(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!selectedWebsite) {
     return (
@@ -26,88 +113,100 @@ export const ThemePage: React.FC = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-gray-600">Loading theme...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Theme & Appearance</h1>
-          <p className="text-gray-600 mt-2">Customize your website's look and feel</p>
+          <p className="text-gray-600 mt-2">
+            Customize the look and feel of {selectedWebsite.name}
+          </p>
         </div>
-        <Button variant="primary">Save Changes</Button>
+
+        <Button variant="primary" onClick={handleSave} disabled={saving || !themeId}>
+          {saving ? 'Saving...' : 'Save Changes'}
+        </Button>
       </div>
+
+      {message && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Theme Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Input
+                  label="Theme Name"
+                  value={themeName}
+                  onChange={(e) => setThemeName(e.target.value)}
+                />
+
+                <Input
+                  label="Description"
+                  value={themeDescription}
+                  onChange={(e) => setThemeDescription(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Brand Colors</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      type="color"
-                      value={theme.primaryColor}
-                      onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-                      className="w-16 h-12 rounded-lg cursor-pointer"
-                    />
-                    <Input
-                      value={theme.primaryColor}
-                      onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-                      className="flex-1"
-                    />
+                {[
+                  ['primaryColor', 'Primary Color'],
+                  ['secondaryColor', 'Secondary Color'],
+                  ['accentColor', 'Accent Color'],
+                  ['textColor', 'Text Color'],
+                  ['backgroundColor', 'Background Color'],
+                ].map(([key, label]) => (
+                  <div key={key}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {label}
+                    </label>
+                    <div className="flex gap-3 items-center">
+                      <input
+                        type="color"
+                        value={theme[key as keyof ThemeSettingsState]}
+                        onChange={(e) =>
+                          updateField(key as keyof ThemeSettingsState, e.target.value)
+                        }
+                        className="w-16 h-12 rounded-lg cursor-pointer"
+                      />
+                      <Input
+                        value={theme[key as keyof ThemeSettingsState]}
+                        onChange={(e) =>
+                          updateField(key as keyof ThemeSettingsState, e.target.value)
+                        }
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      type="color"
-                      value={theme.secondaryColor}
-                      onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
-                      className="w-16 h-12 rounded-lg cursor-pointer"
-                    />
-                    <Input
-                      value={theme.secondaryColor}
-                      onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Accent Color</label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      type="color"
-                      value={theme.accentColor}
-                      onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
-                      className="w-16 h-12 rounded-lg cursor-pointer"
-                    />
-                    <Input
-                      value={theme.accentColor}
-                      onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Text Color</label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      type="color"
-                      value={theme.textColor}
-                      onChange={(e) => setTheme({ ...theme, textColor: e.target.value })}
-                      className="w-16 h-12 rounded-lg cursor-pointer"
-                    />
-                    <Input
-                      value={theme.textColor}
-                      onChange={(e) => setTheme({ ...theme, textColor: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -117,19 +216,18 @@ export const ThemePage: React.FC = () => {
               <CardTitle>Typography</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Select
-                  label="Font Family"
-                  value={theme.fontFamily}
-                  onChange={(e) => setTheme({ ...theme, fontFamily: e.target.value })}
-                  options={[
-                    { value: 'Inter', label: 'Inter' },
-                    { value: 'Roboto', label: 'Roboto' },
-                    { value: 'Poppins', label: 'Poppins' },
-                    { value: 'Open Sans', label: 'Open Sans' },
-                  ]}
-                />
-              </div>
+              <Select
+                label="Font Family"
+                value={theme.fontFamily}
+                onChange={(e) => updateField('fontFamily', e.target.value)}
+                options={[
+                  { value: 'Inter', label: 'Inter' },
+                  { value: 'Roboto', label: 'Roboto' },
+                  { value: 'Poppins', label: 'Poppins' },
+                  { value: 'Open Sans', label: 'Open Sans' },
+                  { value: 'Georgia', label: 'Georgia' },
+                ]}
+              />
             </CardContent>
           </Card>
 
@@ -142,20 +240,35 @@ export const ThemePage: React.FC = () => {
                 <Select
                   label="Button Style"
                   value={theme.buttonStyle}
-                  onChange={(e) => setTheme({ ...theme, buttonStyle: e.target.value })}
+                  onChange={(e) => updateField('buttonStyle', e.target.value)}
                   options={[
                     { value: 'rounded', label: 'Rounded' },
                     { value: 'square', label: 'Square' },
                     { value: 'pill', label: 'Pill' },
                   ]}
                 />
+
                 <Select
                   label="Layout Style"
                   value={theme.layoutStyle}
-                  onChange={(e) => setTheme({ ...theme, layoutStyle: e.target.value })}
+                  onChange={(e) => updateField('layoutStyle', e.target.value)}
                   options={[
+                    { value: 'clean', label: 'Clean' },
+                    { value: 'professional', label: 'Professional' },
+                    { value: 'editorial', label: 'Editorial' },
                     { value: 'boxed', label: 'Boxed' },
                     { value: 'full-width', label: 'Full Width' },
+                  ]}
+                />
+
+                <Select
+                  label="Header Style"
+                  value={theme.headerStyle}
+                  onChange={(e) => updateField('headerStyle', e.target.value)}
+                  options={[
+                    { value: 'simple', label: 'Simple' },
+                    { value: 'corporate', label: 'Corporate' },
+                    { value: 'magazine', label: 'Magazine' },
                   ]}
                 />
               </div>
@@ -166,30 +279,52 @@ export const ThemePage: React.FC = () => {
         <div>
           <Card className="sticky top-8">
             <CardHeader>
-              <CardTitle>Preview</CardTitle>
+              <CardTitle>Live Preview</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 rounded-lg" style={{ backgroundColor: theme.backgroundColor }}>
-                  <h3 className="mb-2" style={{ color: theme.textColor }}>Sample Heading</h3>
-                  <p className="text-sm mb-4" style={{ color: theme.textColor, opacity: 0.7 }}>
-                    This is how your text will look with the selected colors.
+                <div
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: theme.backgroundColor,
+                    fontFamily: theme.fontFamily,
+                  }}
+                >
+                  <p className="text-xs font-semibold uppercase mb-2" style={{ color: theme.primaryColor }}>
+                    {selectedWebsite.name}
                   </p>
+
+                  <h3 className="mb-2 font-bold text-xl" style={{ color: theme.textColor }}>
+                    Sample Heading
+                  </h3>
+
+                  <p className="text-sm mb-4" style={{ color: theme.textColor, opacity: 0.75 }}>
+                    This preview uses the values saved in your website theme.
+                  </p>
+
                   <button
                     className={`px-4 py-2 text-white ${
-                      theme.buttonStyle === 'rounded' ? 'rounded-lg' :
-                      theme.buttonStyle === 'pill' ? 'rounded-full' : 'rounded-none'
+                      theme.buttonStyle === 'rounded'
+                        ? 'rounded-lg'
+                        : theme.buttonStyle === 'pill'
+                          ? 'rounded-full'
+                          : 'rounded-none'
                     }`}
                     style={{ backgroundColor: theme.primaryColor }}
                   >
                     Primary Button
                   </button>
                 </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   <div className="h-12 rounded" style={{ backgroundColor: theme.primaryColor }} />
                   <div className="h-12 rounded" style={{ backgroundColor: theme.secondaryColor }} />
                   <div className="h-12 rounded" style={{ backgroundColor: theme.accentColor }} />
                 </div>
+
+                <Button variant="secondary" onClick={loadTheme} className="w-full">
+                  Reload Theme
+                </Button>
               </div>
             </CardContent>
           </Card>

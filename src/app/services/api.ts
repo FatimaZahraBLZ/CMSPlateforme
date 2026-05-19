@@ -779,6 +779,60 @@ async getWebsites() {
     }
   }
 
+  async getDefaultTheme(websiteId: string) {
+  try {
+    const res = await fetch(
+      `${this.baseUrl}/api/themes/default?website_id=${encodeURIComponent(websiteId)}`,
+      {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to fetch theme');
+    }
+
+    return data.theme;
+  } catch (error) {
+    console.error('Get default theme error:', error);
+    throw error;
+  }
+}
+
+async updateTheme(themeId: string, websiteId: string, settings: any, name?: string, description?: string) {
+  try {
+    const res = await fetch(`${this.baseUrl}/api/themes/${encodeURIComponent(themeId)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        website_id: websiteId,
+        settings,
+        name,
+        description,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.message || 'Failed to update theme');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Update theme error:', error);
+    throw error;
+  }
+}
+
   async getPublicPlatformSettings() {
   const res = await fetch(`${this.baseUrl}/api/public/platform-settings`);
   const data = await res.json();
