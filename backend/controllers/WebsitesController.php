@@ -162,10 +162,16 @@ class WebsitesController
                 ]
             ]);
         } catch (Exception $e) {
-            error_log('Website creation exception: ' . $e->getMessage());
-            error_log('Exception trace: ' . $e->getTraceAsString());
-            $this->respondServerError('Failed to create website: ' . $e->getMessage());
-        }
+    error_log('Website creation exception: ' . $e->getMessage());
+    error_log('Exception trace: ' . $e->getTraceAsString());
+
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Failed to create website',
+        'details' => $e->getMessage()
+    ]);
+}
     }
 
     private function createDefaultContent(string $websiteId, array $websiteData): void
@@ -207,9 +213,11 @@ class WebsitesController
         error_log("Default settings created successfully");
 
     } catch (Exception $e) {
-        error_log('Failed to create default content: ' . $e->getMessage());
-        error_log('Stack trace: ' . $e->getTraceAsString());
-    }
+    error_log('Failed to create default content: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
+
+    throw $e;
+}
 }
 
 private function createDefaultTheme(string $websiteId, array $websiteData): void
@@ -496,14 +504,269 @@ private function generateUuid(): string
         try {
             error_log("Creating page $index: " . $page['slug'] . " with template: " . $page['template']);
 
-            $this->websiteModel->createDefaultPage($websiteId, $page);
+            $pageId = $this->websiteModel->createDefaultPage($websiteId, $page);
 
-            error_log("Successfully created page: " . $page['slug']);
+            if (!$pageId) {
+                throw new Exception("Failed to create page: " . $page['slug']);
+            }
+
+            $this->createDefaultSectionsForPage($websiteId, $pageId, $page, $theme, $defaultLanguage);
+
+            error_log("Successfully created page and sections: " . $page['slug']);
         } catch (Exception $e) {
             error_log("Error creating page " . $page['slug'] . ": " . $e->getMessage());
             throw $e;
         }
     }
+}
+
+private function getDefaultSectionsByTemplate(string $template, array $page, string $theme): array
+{
+    $title = $page['title'] ?? '';
+    $content = $page['content'] ?? '';
+
+    $sectionsByTemplate = [
+        'minimal-home' => [
+            [
+                'section_key' => 'hero',
+                'section_type' => 'hero',
+                'title' => 'Welcome',
+                'subtitle' => 'A clean and simple website',
+                'content' => 'Build a beautiful online presence with a minimal design.',
+                'button_text' => 'Learn More',
+                'button_link' => '/about',
+            ],
+            [
+                'section_key' => 'content',
+                'section_type' => 'content',
+                'title' => $title,
+                'content' => $content,
+            ],
+        ],
+
+        'minimal-about' => [
+            [
+                'section_key' => 'content',
+                'section_type' => 'content',
+                'title' => $title,
+                'content' => $content,
+            ],
+        ],
+
+        'minimal-contact' => [
+            [
+                'section_key' => 'contact-info',
+                'section_type' => 'contact',
+                'title' => 'Contact',
+                'content' => 'Add your contact information here.',
+            ],
+        ],
+
+        'business-home' => [
+            [
+                'section_key' => 'hero',
+                'section_type' => 'hero',
+                'title' => 'Professional solutions for your business',
+                'subtitle' => 'Grow your company with a modern digital presence.',
+                'content' => 'We help businesses present their services, projects, and brand online.',
+                'button_text' => 'Contact Us',
+                'button_link' => '/contact',
+            ],
+            [
+                'section_key' => 'services-preview',
+                'section_type' => 'services',
+                'title' => 'Our Services',
+                'subtitle' => 'What we offer',
+                'content' => 'Present your main business services here.',
+                'settings' => [
+                    'items' => [
+                        ['title' => 'Consulting', 'description' => 'Professional advice for your business.'],
+                        ['title' => 'Development', 'description' => 'Digital solutions adapted to your needs.'],
+                        ['title' => 'Support', 'description' => 'Reliable support for your projects.'],
+                    ],
+                ],
+            ],
+            [
+                'section_key' => 'about-preview',
+                'section_type' => 'about',
+                'title' => 'About Us',
+                'content' => 'Learn more about our company, mission, and values.',
+                'button_text' => 'Read More',
+                'button_link' => '/about',
+            ],
+            [
+                'section_key' => 'projects-preview',
+                'section_type' => 'projects',
+                'title' => 'Our Projects',
+                'content' => 'Showcase your previous work and achievements.',
+                'settings' => [
+                    'items' => [
+                        ['title' => 'Project One', 'description' => 'Short project description.'],
+                        ['title' => 'Project Two', 'description' => 'Short project description.'],
+                        ['title' => 'Project Three', 'description' => 'Short project description.'],
+                    ],
+                ],
+            ],
+            [
+                'section_key' => 'cta',
+                'section_type' => 'cta',
+                'title' => 'Ready to work together?',
+                'subtitle' => 'Let’s build something great.',
+                'button_text' => 'Get Started',
+                'button_link' => '/contact',
+            ],
+        ],
+
+        'business-about' => [
+            [
+                'section_key' => 'content',
+                'section_type' => 'content',
+                'title' => $title,
+                'content' => $content,
+            ],
+            [
+                'section_key' => 'values',
+                'section_type' => 'values',
+                'title' => 'Our Values',
+                'content' => 'Quality, trust, innovation, and professionalism.',
+            ],
+        ],
+
+        'business-services' => [
+            [
+                'section_key' => 'services-grid',
+                'section_type' => 'services',
+                'title' => 'Our Services',
+                'content' => 'Present your main services here.',
+                'settings' => [
+                    'items' => [
+                        ['title' => 'Service One', 'description' => 'Service description.'],
+                        ['title' => 'Service Two', 'description' => 'Service description.'],
+                        ['title' => 'Service Three', 'description' => 'Service description.'],
+                    ],
+                ],
+            ],
+        ],
+
+        'business-projects' => [
+            [
+                'section_key' => 'projects-grid',
+                'section_type' => 'projects',
+                'title' => 'Our Projects',
+                'content' => 'Showcase your previous work and achievements.',
+            ],
+        ],
+
+        'business-contact' => [
+            [
+                'section_key' => 'contact-info',
+                'section_type' => 'contact',
+                'title' => 'Contact Us',
+                'content' => 'Get in touch with our team.',
+            ],
+        ],
+
+        'blog-home' => [
+            [
+                'section_key' => 'hero',
+                'section_type' => 'hero',
+                'title' => 'Welcome to the Blog',
+                'subtitle' => 'Stories, updates, and articles',
+                'content' => 'Read our latest posts and discover new ideas.',
+            ],
+            [
+                'section_key' => 'featured-posts',
+                'section_type' => 'posts',
+                'title' => 'Featured Posts',
+                'content' => 'Featured articles will appear here.',
+            ],
+            [
+                'section_key' => 'latest-posts',
+                'section_type' => 'posts',
+                'title' => 'Latest Posts',
+                'content' => 'Latest articles will appear here.',
+            ],
+        ],
+
+        'blog-list' => [
+            [
+                'section_key' => 'posts-grid',
+                'section_type' => 'posts',
+                'title' => 'Blog',
+                'content' => 'Browse all articles and updates here.',
+            ],
+        ],
+
+        'blog-categories' => [
+            [
+                'section_key' => 'categories-grid',
+                'section_type' => 'categories',
+                'title' => 'Categories',
+                'content' => 'Explore articles by category.',
+            ],
+        ],
+
+        'blog-about' => [
+            [
+                'section_key' => 'content',
+                'section_type' => 'content',
+                'title' => $title,
+                'content' => $content,
+            ],
+        ],
+
+        'blog-contact' => [
+            [
+                'section_key' => 'contact-info',
+                'section_type' => 'contact',
+                'title' => 'Contact',
+                'content' => 'Contact the blog author or editorial team.',
+            ],
+        ],
+    ];
+
+    return $sectionsByTemplate[$template] ?? [
+        [
+            'section_key' => 'content',
+            'section_type' => 'content',
+            'title' => $title,
+            'content' => $content,
+        ],
+    ];
+}
+
+private function createDefaultSectionsForPage(
+    string $websiteId,
+    string $pageId,
+    array $page,
+    string $theme,
+    string $language
+): void {
+    $template = $page['template'] ?? '';
+    $slug = $page['slug'] ?? '';
+
+    $sections = $this->getDefaultSectionsByTemplate($template, $page, $theme);
+
+    foreach ($sections as $index => $section) {
+        $this->websiteModel->createWebsiteSection(
+            $websiteId,
+            $pageId,
+            $language,
+            $section['section_key'],
+            $section['section_type'],
+            $section['title'] ?? '',
+            $section['subtitle'] ?? null,
+            $section['content'] ?? null,
+            $section['image'] ?? null,
+            $section['button_text'] ?? null,
+            $section['button_link'] ?? null,
+            $index + 1,
+            true,
+            $section['settings'] ?? []
+        );
+    }
+
+    error_log("Created " . count($sections) . " sections for page: " . $slug);
 }
 
 private function getDefaultPagesByTheme(string $theme, string $language): array

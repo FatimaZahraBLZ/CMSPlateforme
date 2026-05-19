@@ -229,18 +229,56 @@ class PublicController {
                 : [];
         }
 
-        echo json_encode([
-            'status' => 'success',
-            'page' => $page,
-            'template' => $template,
-            'theme' => $theme,
-            'website' => $website,
-            'metadata' => [
-                'title' => $page['meta_title'] ?: $page['title'],
-                'description' => $page['meta_description'] ?: ($page['excerpt'] ?? ''),
-                'image' => $page['meta_image'] ?: ($page['image'] ?? null),
-            ]
-        ]);
+        // 5. Get dynamic page sections
+$stmt = $this->pdo->prepare("
+    SELECT
+        id,
+        website_id,
+        page_id,
+        language,
+        section_key,
+        section_type,
+        title,
+        subtitle,
+        content,
+        image,
+        button_text,
+        button_link,
+        order_position,
+        is_active,
+        settings
+    FROM website_sections
+    WHERE website_id = ?
+      AND page_id = ?
+      AND language = ?
+      AND is_active = 1
+    ORDER BY order_position ASC
+");
+
+$stmt->execute([$websiteId, $page['id'], $language]);
+$sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($sections as &$section) {
+    $section['is_active'] = (bool) $section['is_active'];
+    $section['settings'] = $section['settings']
+        ? json_decode($section['settings'], true)
+        : [];
+}
+unset($section);
+
+       echo json_encode([
+    'status' => 'success',
+    'page' => $page,
+    'template' => $template,
+    'theme' => $theme,
+    'website' => $website,
+    'sections' => $sections,
+    'metadata' => [
+        'title' => $page['meta_title'] ?: $page['title'],
+        'description' => $page['meta_description'] ?: ($page['excerpt'] ?? ''),
+        'image' => $page['meta_image'] ?: ($page['image'] ?? null),
+    ]
+]);
 
     } catch (Exception $e) {
         http_response_code(500);

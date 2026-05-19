@@ -135,6 +135,66 @@ class WebsiteModel
     return $pageId;
 }
 
+public function createWebsiteSection(
+    string $websiteId,
+    string $pageId,
+    string $language,
+    string $sectionKey,
+    string $sectionType,
+    string $title = '',
+    ?string $subtitle = null,
+    ?string $content = null,
+    ?string $image = null,
+    ?string $buttonText = null,
+    ?string $buttonLink = null,
+    int $orderPosition = 0,
+    bool $isActive = true,
+    array $settings = []
+): ?string {
+    $sectionId = $this->generateUuid();
+
+    $stmt = $this->pdo->prepare("
+        INSERT INTO website_sections (
+            id,
+            website_id,
+            page_id,
+            language,
+            section_key,
+            section_type,
+            title,
+            subtitle,
+            content,
+            image,
+            button_text,
+            button_link,
+            order_position,
+            is_active,
+            settings
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    $success = $stmt->execute([
+        $sectionId,
+        $websiteId,
+        $pageId,
+        $language,
+        $sectionKey,
+        $sectionType,
+        $title,
+        $subtitle,
+        $content,
+        $image,
+        $buttonText,
+        $buttonLink,
+        $orderPosition,
+        $isActive ? 1 : 0,
+        json_encode($settings, JSON_UNESCAPED_UNICODE),
+    ]);
+
+    return $success ? $sectionId : null;
+}
+
     public function createDefaultMenu(string $websiteId, string $menuName, array $menuItems, string $language, string $type = 'header'): void
     {
         try {
