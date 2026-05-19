@@ -47,6 +47,7 @@ export const PublicLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>('en');
+  const [siteSettings, setSiteSettings] = useState<any>(null);
 
   useEffect(() => {
     const loadWebsite = async () => {
@@ -77,6 +78,33 @@ export const PublicLayout: React.FC = () => {
 
     loadWebsite();
   }, []);
+
+  useEffect(() => {
+  if (!website) return;
+
+  const fetchSiteSettings = async () => {
+    try {
+      const data = await api.getPublicSiteSettings(website.id);
+      setSiteSettings(data);
+
+      if (data?.favicon) {
+        let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+
+        if (!favicon) {
+          favicon = document.createElement('link');
+          favicon.rel = 'icon';
+          document.head.appendChild(favicon);
+        }
+
+        favicon.href = data.favicon;
+      }
+    } catch (err) {
+      console.error('Failed to fetch site settings:', err);
+    }
+  };
+
+  fetchSiteSettings();
+}, [website]);
 
   // Fetch menus when website is loaded
   useEffect(() => {
@@ -195,10 +223,15 @@ export const PublicLayout: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                <Logo className="w-10 h-10" alt="Logo" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">{website.name}</span>
+              {siteSettings?.logo ? (
+  <img src={siteSettings.logo} alt={siteSettings.site_name} className="w-10 h-10 object-contain" />
+) : (
+  <Logo className="w-10 h-10" alt="Logo" />
+)}
+
+<span className="text-xl font-bold text-gray-900">
+  {siteSettings?.site_name || website.name}
+</span>
             </div>
 
             {/* Dynamic Header Navigation */}
@@ -240,10 +273,15 @@ export const PublicLayout: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                  <Logo className="w-10 h-10" alt="Logo" />
-                </div>
-                <span className="text-xl font-bold">{website.name}</span>
+                {siteSettings?.logo ? (
+  <img src={siteSettings.logo} alt={siteSettings.site_name} className="w-10 h-10 object-contain" />
+) : (
+  <Logo className="w-10 h-10" alt="Logo" />
+)}
+
+<span className="text-xl font-bold">
+  {siteSettings?.site_name || website.name}
+</span>
               </div>
 
               <p className="text-gray-400 text-sm">
@@ -280,7 +318,7 @@ export const PublicLayout: React.FC = () => {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2026 {website.name}. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} {website?.name}. All rights reserved.</p>
           </div>
         </div>
       </footer>

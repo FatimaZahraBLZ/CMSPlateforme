@@ -72,17 +72,6 @@ export const PublicTemplateRenderer: React.FC<PublicTemplateRendererProps> = ({
           }}
         />
       )}
-
-      <footer
-        className="border-t py-8 text-center text-sm"
-        style={{
-          backgroundColor,
-          color: textColor,
-          borderColor: secondaryColor,
-        }}
-      >
-        <p>&copy; {new Date().getFullYear()} {website?.name}. All rights reserved.</p>
-      </footer>
     </main>
   );
 };

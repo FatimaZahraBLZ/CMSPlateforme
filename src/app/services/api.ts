@@ -858,6 +858,59 @@ async updateTheme(themeId: string, websiteId: string, settings: any, name?: stri
     return data.settings;
   }
 
+  async getSiteSettings(websiteId: string) {
+  const res = await fetch(
+    `${this.baseUrl}/api/site-settings?website_id=${encodeURIComponent(websiteId)}`,
+    {
+      method: 'GET',
+      headers: this.getAuthHeaders(),
+      credentials: 'include',
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to fetch site settings');
+  }
+
+  return data.settings;
+}
+
+async updateSiteSettings(settings: any) {
+  const res = await fetch(`${this.baseUrl}/api/site-settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...this.getAuthHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(settings),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to update site settings');
+  }
+
+  return data;
+}
+
+async getPublicSiteSettings(websiteId: string) {
+  const res = await fetch(
+    `${this.baseUrl}/api/public/site-settings?website_id=${encodeURIComponent(websiteId)}`
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to fetch public site settings');
+  }
+
+  return data.settings;
+}
+
   async updatePlatformSettings(settings: any) {
     const res = await fetch(`${this.baseUrl}/api/platform-settings`, {
       method: 'PUT',

@@ -59,6 +59,7 @@ require_once __DIR__ . '/controllers/DashboardController.php';
 require_once __DIR__ . '/controllers/ActivityLogsController.php';
 require_once __DIR__ . '/controllers/PlatformSettingsController.php';
 require_once __DIR__ . '/controllers/ThemeController.php';
+require_once __DIR__ . '/controllers/SiteSettingsController.php';
 
 
 $pdo = getPDO();
@@ -101,6 +102,24 @@ if ($path === '/api/platform-settings' && $method === 'GET') {
 if ($path === '/api/platform-settings' && $method === 'PUT') {
     $controller = new PlatformSettingsController($pdo);
     $controller->updateSettings();
+    exit;
+}
+
+if ($path === '/api/site-settings' && $method === 'GET') {
+    $controller = new SiteSettingsController($pdo);
+    $controller->getSettings();
+    exit;
+}
+
+if ($path === '/api/site-settings' && $method === 'PUT') {
+    $controller = new SiteSettingsController($pdo);
+    $controller->updateSettings();
+    exit;
+}
+
+if ($path === '/api/public/site-settings' && $method === 'GET') {
+    $controller = new SiteSettingsController($pdo);
+    $controller->publicSettings();
     exit;
 }
 
