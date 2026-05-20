@@ -10,6 +10,7 @@ import { useCMS } from '../../contexts/CMSContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import { Page } from '../../types';
+import { Link } from 'react-router';
 
 // ============================================
 // HELPER FUNCTIONS
@@ -403,6 +404,15 @@ export const PagesPage: React.FC = () => {
                        >
                        Delete
                       </Button>
+
+                      <a
+                          href={`http://localhost:5174?pageId=${page.id}&websiteId=${selectedWebsite.id}&token=${localStorage.getItem('token') || ''}&userName=${encodeURIComponent(user?.name || 'User')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 rounded-lg bg-purple-600 text-white text-sm"
+                        >
+                       Design
+                      </a>
                     </div>
                   </TableCell>
                 </TableRow>

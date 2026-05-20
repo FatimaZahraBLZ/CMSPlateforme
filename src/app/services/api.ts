@@ -17,6 +17,8 @@ export class ApiService {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+
+
   // Authentication
   async login(email: string, password: string) {
     try {
@@ -911,6 +913,7 @@ async getPublicTheme(websiteId: string) {
   return data.theme;
 }
 
+
 async getPublicSiteSettings(websiteId: string) {
   const res = await fetch(
     `${this.baseUrl}/api/public/site-settings?website_id=${encodeURIComponent(websiteId)}`
@@ -945,4 +948,51 @@ async getPublicSiteSettings(websiteId: string) {
   }
 };
 export const api = new ApiService();
+export const API_BASE_URL = 'http://localhost:8001';
+
+export const mediaApi = {
+  list: async (websiteId: string) => {
+    const res = await fetch(
+      `${API_BASE_URL}/api/media?website_id=${websiteId}`
+    );
+
+    return res.json();
+  },
+
+  upload: async (
+    websiteId: string,
+    file: File,
+    altText?: string
+  ) => {
+    const formData = new FormData();
+
+    formData.append('website_id', websiteId);
+    formData.append('file', file);
+
+    if (altText) {
+      formData.append('alt_text', altText);
+    }
+
+    const res = await fetch(
+      `${API_BASE_URL}/api/media/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    return res.json();
+  },
+
+  delete: async (id: string) => {
+    const res = await fetch(
+      `${API_BASE_URL}/api/media/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+
+    return res.json();
+  },
+};
 

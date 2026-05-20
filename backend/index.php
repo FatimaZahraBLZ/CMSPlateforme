@@ -3,6 +3,18 @@
 
 header('Content-Type: application/json');
 
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+
+header("Access-Control-Allow-Origin: $origin");
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 // Set error handler to catch PHP errors and return as JSON
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     error_log("PHP Error: [$errno] $errstr in $errfile on line $errline");
@@ -60,12 +72,27 @@ require_once __DIR__ . '/controllers/ActivityLogsController.php';
 require_once __DIR__ . '/controllers/PlatformSettingsController.php';
 require_once __DIR__ . '/controllers/ThemeController.php';
 require_once __DIR__ . '/controllers/SiteSettingsController.php';
+require_once __DIR__ . '/controllers/MediaController.php';
 
 
 $pdo = getPDO();
 $request_uri = $_SERVER['REQUEST_URI'] ?? '/';
 $path = parse_url($request_uri, PHP_URL_PATH);
+
+// IMPORTANT: remove project folder from path when using XAMPP/Apache
+$scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+
+if ($scriptDir && str_starts_with($path, $scriptDir)) {
+    $path = substr($path, strlen($scriptDir));
+}
+
+$path = '/' . ltrim($path, '/');
 $path = rtrim(strtolower(trim($path)), '/');
+
+if ($path === '') {
+    $path = '/';
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Basic API router
@@ -103,6 +130,28 @@ if ($path === '/api/platform-settings' && $method === 'PUT') {
     $controller = new PlatformSettingsController($pdo);
     $controller->updateSettings();
     exit;
+}
+
+if ($path === '/api/media' && $method === 'GET') {
+    $controller = new MediaController($pdo);
+    $controller->index();
+    exit;
+}
+
+if ($path === '/api/media/upload' && $method === 'POST') {
+    $controller = new MediaController($pdo);
+    $controller->upload();
+    exit;
+}
+
+if (preg_match('#^/api/media/([^/]+)$#', $path, $matches)) {
+    $mediaId = $matches[1];
+    $controller = new MediaController($pdo);
+
+    if ($method === 'DELETE') {
+        $controller->delete($mediaId);
+        exit;
+    }
 }
 
 if ($path === '/api/site-settings' && $method === 'GET') {

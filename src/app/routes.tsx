@@ -24,6 +24,7 @@ import { GlobalSettingsPage } from './pages/settings/GlobalSettingsPage';
 import { ActivityLogsPage } from './pages/activity/ActivityLogsPage';
 import { PreviewPage } from './pages/preview/PreviewPage';
 import { PublishPage } from './pages/publish/PublishPage';
+import { BuilderPage } from './pages/builder/BuilderPage';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -127,6 +128,14 @@ export const router = createBrowserRouter([
       {
         path: 'publish',
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor', 'editor']}><PublishPage /></ProtectedRoute>,
+      },
+      {
+        path: 'builder/:pageId',
+        element: (
+       <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}>
+           <BuilderPage />
+        </ProtectedRoute>
+        ),
       },
     ],
   },

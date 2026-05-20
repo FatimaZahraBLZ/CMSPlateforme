@@ -76,13 +76,21 @@ export interface Article {
 
 export interface MediaItem {
   id: string;
-  websiteId: string;
+  website_id: string;
+  websiteId?: string;
+
   name: string;
+  original_name?: string;
   url: string;
+
   type: 'image' | 'video' | 'document';
   size: number;
-  mimeType: string;
-  createdAt: Date;
+  mime_type: string;
+  mimeType?: string;
+
+  alt_text?: string;
+  created_at: string;
+  createdAt?: Date;
 }
 
 export type MenuType = 'header' | 'footer';

@@ -42,6 +42,7 @@ import { BlogPage } from '../pages/public/BlogPage';
 import { ArticlePage } from '../pages/public/ArticlePage';
 import { ContactPage } from '../pages/public/ContactPage';
 import { PublicPage } from '../pages/public/PublicPage';
+import { BuilderPage } from '../pages/builder/BuilderPage';
 
 // Role Redirect Component
 const RoleBasedRedirect: React.FC = () => {
@@ -151,9 +152,16 @@ const cmsRouter = createBrowserRouter([
         path: 'publish',
         element: <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}><PublishPage /></ProtectedRoute>,
       },
+      {
+        path: 'builder/:pageId',
+        element: (
+       <ProtectedRoute allowedRoles={['super_admin', 'admin', 'editor']}>
+           <BuilderPage />
+        </ProtectedRoute>
+        ),
+      },
     ],
   },
-  // Fallback for CMS - redirect to login
   {
     path: '*',
     element: <Navigate to="/login" replace />,
