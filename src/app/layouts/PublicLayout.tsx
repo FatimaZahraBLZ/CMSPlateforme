@@ -253,12 +253,14 @@ useEffect(() => {
 )
 )}
 
-<span
-  className="text-xl font-bold"
-  style={{ color: themeSettings?.header?.textColor || '#111827' }}
->
-  {siteSettings?.site_name || website.name}
-</span>
+{themeSettings?.header?.showSiteName !== false && (
+  <span
+    className="text-xl font-bold"
+    style={{ color: themeSettings?.header?.textColor || '#111827' }}
+  >
+    {siteSettings?.site_name || website.name}
+  </span>
+)}
             </div>
 
             {/* Dynamic Header Navigation */}
@@ -333,9 +335,14 @@ style={{
 )
 )}
 
-<span className="text-xl font-bold">
-  {siteSettings?.site_name || website.name}
-</span>
+{themeSettings?.footer?.showSiteName !== false && (
+  <span
+    className="text-xl font-bold"
+    style={{ color: themeSettings?.footer?.textColor || '#111827' }}
+  >
+    {siteSettings?.site_name || website.name}
+  </span>
+)}
               </div>
 
               <p className="text-gray-400 text-sm">

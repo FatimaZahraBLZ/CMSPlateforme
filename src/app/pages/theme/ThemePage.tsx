@@ -19,18 +19,20 @@ interface ThemeSettingsState {
   headerStyle: string;
 
   header: {
-    backgroundColor: string;
-    textColor: string;
-    sticky: boolean;
-    showLogo: boolean;
-    showButton: boolean;
-    layout: string;
+  backgroundColor: string;
+  textColor: string;
+  sticky: boolean;
+  showLogo: boolean;
+  showSiteName: boolean;
+  showButton: boolean;
+  layout: string;
   };
 
   footer: {
     backgroundColor: string;
     textColor: string;
     showLogo: boolean;
+    showSiteName: boolean;
     showSocialLinks: boolean;
     showContactInfo: boolean;
     columns: number;
@@ -50,18 +52,20 @@ const defaultSettings: ThemeSettingsState = {
   headerStyle: 'corporate',
 
   header: {
-    backgroundColor: '#ffffff',
-    textColor: '#111827',
-    sticky: true,
-    showLogo: true,
-    showButton: true,
-    layout: 'centered',
+  backgroundColor: '#ffffff',
+  textColor: '#111827',
+  sticky: true,
+  showLogo: true,
+  showSiteName: true,
+  showButton: true,
+  layout: 'centered',
   },
 
   footer: {
     backgroundColor: '#111827',
     textColor: '#ffffff',
     showLogo: true,
+    showSiteName: true,
     showSocialLinks: true,
     showContactInfo: true,
     columns: 4,
@@ -412,6 +416,17 @@ const updateFooterField = (key: string, value: any) => {
         </label>
 
         <label className="flex items-center gap-3">
+  <input
+    type="checkbox"
+    checked={theme.header.showSiteName}
+    onChange={(e) =>
+      updateHeaderField('showSiteName', e.target.checked)
+    }
+  />
+  <span>Show Website Name</span>
+</label>
+
+        <label className="flex items-center gap-3">
           <input
             type="checkbox"
             checked={theme.header.showButton}
@@ -493,6 +508,17 @@ const updateFooterField = (key: string, value: any) => {
           />
           <span>Show Logo</span>
         </label>
+
+        <label className="flex items-center gap-3">
+  <input
+    type="checkbox"
+    checked={theme.footer.showSiteName}
+    onChange={(e) =>
+      updateFooterField('showSiteName', e.target.checked)
+    }
+  />
+  <span>Show Website Name</span>
+</label>
 
         <label className="flex items-center gap-3">
           <input
